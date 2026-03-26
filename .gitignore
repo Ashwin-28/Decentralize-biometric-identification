@@ -1,0 +1,52 @@
+# Dependencies
+node_modules/
+frontend/node_modules/
+
+# Build outputs
+build/
+frontend/build/
+dist/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Python
+backend/venv/
+backend/__pycache__/
+backend/**/__pycache__/
+*.pyc
+*.pyo
+.Python
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Testing
+coverage/
+.coverage
+
+# Security
+*.key
+*.pem
+.master_key
+
+# Uploads
+backend/uploads/
+backend/ipfs_local/
+
+# Misc
+*.tmp
+*.temp
