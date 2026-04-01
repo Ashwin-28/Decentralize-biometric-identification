@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#0a0a0a" />
+    <meta name="description" content="Decentralized Biometric Identity Verification System - Secure blockchain-based identity management with AI-powered biometric authentication" />
+    <meta name="keywords" content="biometric, blockchain, identity, verification, decentralized, AI, facial recognition" />
+    <meta name="author" content="Biometric Identity Team" />
+    
+    <script>
+      // 🛡️ SHIELD: Global fallbacks for invasive browser extensions (Copilot, ZybTracker, etc)
+      window.config = window.config || {};
+      window.config.plat = window.config.plat || 'pc';
+      window.plat = window.plat || 'pc';
+      window.PC = window.PC || { plat: 'pc' }; // Fix "PC plat undefined"
+
+      // Intercept and silence known extension noise
+      const SILENCE_PATTERNS = [
+        'message channel closed',
+        'copilot',
+        'v[b] is not a function',
+        'ExtensionError',
+        'PC plat undefined',
+        'zybTracker'
+      ];
+
+      const originalError = console.error;
+      console.error = function(...args) {
+        const msg = args.join(' ');
+        if (SILENCE_PATTERNS.some(p => msg.includes(p))) {
+          return; // Suppress from console
+        }
+        originalError.apply(console, args);
+      };
+
+      window.onerror = function(message) {
+        if (typeof message === 'string' && SILENCE_PATTERNS.some(p => message.includes(p))) {
+          console.warn('[SHIELD] Suppressed extension error:', message);
+          return true; // Stop propagation
+        }
+        return false;
+      };
+      
+      window.addEventListener('unhandledrejection', function(event) {
+        const msg = event.reason?.message || String(event.reason);
+        if (SILENCE_PATTERNS.some(p => msg.includes(p))) {
+          console.warn('[SHIELD] Suppressed extension promise rejection:', msg);
+          event.preventDefault();
+        }
+      });
+
+      console.log("[SHIELD] Biometric Defense System Active (v2.0)");
+    </script>
+    
+    <!-- Open Graph -->
+    <meta property="og:title" content="Decentralized Biometric Identity" />
+    <meta property="og:description" content="Secure blockchain-based biometric identity verification" />
+    <meta property="og:type" content="website" />
+    
+    <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo192.png" />
+    <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
+    
+    <title>Biometric Identity | Decentralized Verification</title>
+  </head>
+  <body>
+    <noscript>You need to enable JavaScript to run this application.</noscript>
+    <div id="root"></div>
+  </body>
+</html>

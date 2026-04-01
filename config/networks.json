@@ -1,0 +1,32 @@
+{
+  "networks": {
+    "development": {
+      "name": "Local Ganache",
+      "chainId": 1337,
+      "rpcUrl": "http://127.0.0.1:8545"
+    },
+    "sepolia": {
+      "name": "Sepolia Testnet",
+      "chainId": 11155111,
+      "rpcUrl": "https://sepolia.infura.io/v3/${INFURA_PROJECT_ID}",
+      "explorer": "https://sepolia.etherscan.io"
+    },
+    "mainnet": {
+      "name": "Ethereum Mainnet",
+      "chainId": 1,
+      "rpcUrl": "https://mainnet.infura.io/v3/${INFURA_PROJECT_ID}",
+      "explorer": "https://etherscan.io"
+    },
+    "polygon": {
+      "name": "Polygon Mainnet",
+      "chainId": 137,
+      "rpcUrl": "https://polygon-mainnet.infura.io/v3/${INFURA_PROJECT_ID}",
+      "explorer": "https://polygonscan.com"
+    }
+  },
+  "contracts": {
+    "BiometricRegistry": {
+      "description": "Main identity registry contract"
+    }
+  }
+}

@@ -43,6 +43,10 @@ coverage/
 *.pem
 .master_key
 
+# Databases and Local Blockchain
+biometric_identity.db
+ganache_db/
+
 # Uploads
 backend/uploads/
 backend/ipfs_local/

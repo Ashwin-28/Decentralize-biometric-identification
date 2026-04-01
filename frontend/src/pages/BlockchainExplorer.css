@@ -1,0 +1,634 @@
+.blockchain-explorer {
+  min-height: 100vh;
+  padding: 2rem;
+  background: linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 50%, #0a0a0f 100%);
+}
+
+/* Loading State */
+.explorer-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  color: #888;
+}
+
+.loading-spinner {
+  width: 50px;
+  height: 50px;
+  border: 3px solid rgba(99, 102, 241, 0.2);
+  border-top-color: #6366f1;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Header */
+.explorer-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.explorer-header h1 {
+  font-size: 2rem;
+  color: #fff;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.explorer-header h1 .icon {
+  font-size: 2.5rem;
+}
+
+.explorer-header p {
+  color: #888;
+  margin: 0.5rem 0 0 0;
+}
+
+.header-controls {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.auto-refresh {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #888;
+  cursor: pointer;
+}
+
+.auto-refresh input {
+  accent-color: #6366f1;
+}
+
+.refresh-btn {
+  padding: 0.5rem 1rem;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  border: none;
+  border-radius: 8px;
+  color: white;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.3s;
+}
+
+.refresh-btn:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
+}
+
+/* Status Cards */
+.status-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.status-card {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.status-card.connected {
+  border-color: rgba(16, 185, 129, 0.3);
+}
+
+.status-card.disconnected {
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+.card-icon {
+  font-size: 2rem;
+}
+
+.card-content {
+  display: flex;
+  flex-direction: column;
+}
+
+.card-label {
+  font-size: 0.75rem;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.card-value {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #fff;
+}
+
+.status-indicator {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.status-indicator.online {
+  background: #10b981;
+  box-shadow: 0 0 10px #10b981;
+  animation: pulse 2s infinite;
+}
+
+.status-indicator.offline {
+  background: #ef4444;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* Contract Banner */
+.contract-banner {
+  background: rgba(99, 102, 241, 0.1);
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  border-radius: 10px;
+  padding: 1rem 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+}
+
+.contract-label {
+  color: #a5b4fc;
+  font-weight: 500;
+}
+
+.contract-address {
+  background: rgba(0, 0, 0, 0.3);
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-family: "Fira Code", monospace;
+  color: #e0e7ff;
+  font-size: 0.9rem;
+}
+
+.copy-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1rem;
+  padding: 0.25rem;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+}
+
+.copy-btn:hover {
+  opacity: 1;
+}
+
+.copy-btn.small {
+  font-size: 0.8rem;
+}
+
+/* Tabs */
+.explorer-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding-bottom: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.tab {
+  padding: 0.75rem 1.5rem;
+  background: transparent;
+  border: none;
+  color: #888;
+  cursor: pointer;
+  font-size: 0.95rem;
+  border-radius: 8px 8px 0 0;
+  transition: all 0.3s;
+}
+
+.tab:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.tab.active {
+  color: #fff;
+  background: rgba(99, 102, 241, 0.2);
+  border-bottom: 2px solid #6366f1;
+}
+
+/* Tab Content */
+.tab-content {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 1.5rem;
+  min-height: 400px;
+}
+
+/* Overview Tab */
+.overview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.overview-section {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 10px;
+  padding: 1rem;
+}
+
+.overview-section h3 {
+  color: #fff;
+  margin: 0 0 1rem 0;
+  font-size: 1rem;
+}
+
+.mini-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.mini-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.mini-item:hover {
+  background: rgba(99, 102, 241, 0.1);
+}
+
+.block-number {
+  color: #6366f1;
+  font-weight: 600;
+}
+
+.block-txs {
+  color: #888;
+  font-size: 0.85rem;
+}
+
+.block-time {
+  color: #666;
+  font-size: 0.8rem;
+}
+
+.tx-item {
+  gap: 0.5rem;
+}
+
+.tx-hash {
+  color: #6366f1;
+  font-family: monospace;
+}
+
+.tx-arrow {
+  color: #444;
+}
+
+.tx-to {
+  color: #888;
+  font-family: monospace;
+}
+
+.tx-value {
+  color: #10b981;
+  font-weight: 500;
+}
+
+.no-data {
+  color: #666;
+  text-align: center;
+  padding: 1rem;
+}
+
+/* Blockchain Visualization */
+.blockchain-visual {
+  margin-top: 2rem;
+}
+
+.blockchain-visual h3 {
+  color: #fff;
+  margin-bottom: 1rem;
+}
+
+.chain-container {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  overflow-x: auto;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 12px;
+}
+
+.block-node {
+  min-width: 140px;
+  background: linear-gradient(
+    135deg,
+    rgba(99, 102, 241, 0.2),
+    rgba(139, 92, 246, 0.2)
+  );
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  border-radius: 10px;
+  padding: 0.75rem;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.block-node:hover,
+.block-node.selected {
+  transform: translateY(-4px);
+  border-color: #6366f1;
+  box-shadow: 0 4px 20px rgba(99, 102, 241, 0.3);
+}
+
+.block-header {
+  font-weight: 600;
+  color: #fff;
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.block-body {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.block-stat {
+  font-size: 0.75rem;
+  color: #888;
+}
+
+.block-stat span {
+  color: #666;
+}
+
+.block-hash {
+  font-family: monospace;
+  font-size: 0.7rem;
+  color: #666;
+}
+
+.chain-link {
+  font-size: 1.5rem;
+  color: #6366f1;
+}
+
+/* Data Table */
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.data-table th {
+  text-align: left;
+  padding: 1rem;
+  color: #888;
+  font-weight: 500;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.data-table td {
+  padding: 1rem;
+  color: #ccc;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.data-table tr {
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.data-table tbody tr:hover {
+  background: rgba(99, 102, 241, 0.1);
+}
+
+.data-table tr.selected {
+  background: rgba(99, 102, 241, 0.2);
+}
+
+.block-num {
+  color: #6366f1;
+  font-weight: 600;
+}
+
+.hash-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.hash-cell code {
+  font-family: "Fira Code", monospace;
+  font-size: 0.85rem;
+  color: #a5b4fc;
+}
+
+.balance {
+  color: #10b981;
+  font-weight: 500;
+}
+
+/* Detail Panel */
+.detail-panel {
+  margin-top: 1.5rem;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  border-radius: 12px;
+  padding: 1.5rem;
+  position: relative;
+}
+
+.detail-panel h3 {
+  color: #fff;
+  margin: 0 0 1rem 0;
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1rem;
+}
+
+.detail-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.detail-item.full {
+  grid-column: 1 / -1;
+}
+
+.detail-item .label {
+  font-size: 0.75rem;
+  color: #888;
+  text-transform: uppercase;
+}
+
+.detail-item code {
+  font-family: "Fira Code", monospace;
+  font-size: 0.85rem;
+  color: #a5b4fc;
+  word-break: break-all;
+}
+
+.detail-item span:not(.label) {
+  color: #fff;
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  width: fit-content;
+}
+
+.status-badge.success {
+  background: rgba(16, 185, 129, 0.2);
+  color: #10b981;
+}
+
+.input-data {
+  background: rgba(0, 0, 0, 0.3);
+  padding: 0.5rem;
+  border-radius: 6px;
+  display: block;
+}
+
+.close-btn {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  color: #888;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.close-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+}
+
+/* No Transactions */
+.no-transactions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 2rem;
+  text-align: center;
+}
+
+.no-transactions .icon {
+  font-size: 4rem;
+  margin-bottom: 1rem;
+}
+
+.no-transactions h3 {
+  color: #fff;
+  margin: 0 0 0.5rem 0;
+}
+
+.no-transactions p {
+  color: #888;
+  margin: 0;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .blockchain-explorer {
+    padding: 1rem;
+  }
+
+  .explorer-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .explorer-header h1 {
+    font-size: 1.5rem;
+  }
+
+  .status-cards {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .contract-banner {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .contract-address {
+    font-size: 0.75rem;
+    word-break: break-all;
+  }
+
+  .chain-container {
+    flex-direction: column;
+  }
+
+  .chain-link {
+    transform: rotate(90deg);
+  }
+
+  .data-table {
+    font-size: 0.85rem;
+  }
+
+  .data-table th,
+  .data-table td {
+    padding: 0.75rem 0.5rem;
+  }
+}

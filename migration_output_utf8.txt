@@ -1,0 +1,154 @@
+﻿node.exe : This version of 
+┬╡WS is not compatible with 
+your Node.js build:
+At line:1 char:1
++ & "C:\Program 
+Files\nodejs/node.exe" 
+"C:\Program 
+Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~
+    + CategoryInfo           
+   : NotSpecified: (This ve  
+  rsion of... Node.js buil   
+ d::String) [], RemoteExc    
+eption
+    + FullyQualifiedErrorId  
+   : NativeCommandError
+ 
+
+Error: Cannot find module '..
+/binaries/uws_win32_x64_127.n
+ode'
+Require stack:
+- C:\Users\K.M.Dhoni\Download
+s\Blockchain_Face_With_ZKP_AN
+D_IPFS_WithoutNMAndBuild2_new
+2\Blockchain_Face_With_ZKP_AN
+D_IPFS_WithoutNMAndBuild2_new
+1\Blockchain_Face_With_ZKP_AN
+D_IPFS_WithoutNMAndBuild2\nod
+e_modules\truffle\node_module
+s\ganache\node_modules\@truff
+lesuite\uws-js-unofficial\src
+\uws.js
+- C:\Users\K.M.Dhoni\Download
+s\Blockchain_Face_With_ZKP_AN
+D_IPFS_WithoutNMAndBuild2_new
+2\Blockchain_Face_With_ZKP_AN
+D_IPFS_WithoutNMAndBuild2_new
+1\Blockchain_Face_With_ZKP_AN
+D_IPFS_WithoutNMAndBuild2\nod
+e_modules\truffle\node_module
+s\ganache\dist\node\core.js
+- C:\Users\K.M.Dhoni\Download
+s\Blockchain_Face_With_ZKP_AN
+D_IPFS_WithoutNMAndBuild2_new
+2\Blockchain_Face_With_ZKP_AN
+D_IPFS_WithoutNMAndBuild2_new
+1\Blockchain_Face_With_ZKP_AN
+D_IPFS_WithoutNMAndBuild2\nod
+e_modules\truffle\build\migra
+te.bundled.js
+- C:\Users\K.M.Dhoni\Download
+s\Blockchain_Face_With_ZKP_AN
+D_IPFS_WithoutNMAndBuild2_new
+2\Blockchain_Face_With_ZKP_AN
+D_IPFS_WithoutNMAndBuild2_new
+1\Blockchain_Face_With_ZKP_AN
+D_IPFS_WithoutNMAndBuild2\nod
+e_modules\original-require\in
+dex.js
+- C:\Users\K.M.Dhoni\Download
+s\Blockchain_Face_With_ZKP_AN
+D_IPFS_WithoutNMAndBuild2_new
+2\Blockchain_Face_With_ZKP_AN
+D_IPFS_WithoutNMAndBuild2_new
+1\Blockchain_Face_With_ZKP_AN
+D_IPFS_WithoutNMAndBuild2\nod
+e_modules\truffle\build\cli.b
+undled.js
+Falling back to a NodeJS 
+implementation; performance 
+may be degraded.
+
+
+
+Compiling your contracts...
+===========================
+> Compiling .\contracts\BiometricRegistry.sol
+> Compiling .\contracts\BiometricVerifier.sol
+> Compiling .\contracts\FingerprintRegistry.sol
+> Compiling .\contracts\Migrations.sol
+> Compiling .\contracts\VoiceAuth.sol
+> Compilation warnings encountered:
+
+    Warning: This declaration has the same name as another declaration.
+   --> project:/contracts/BiometricRegistry.sol:423:9:
+    |
+423 |         bool isEnrollmentCenter
+    |         ^^^^^^^^^^^^^^^^^^^^^^^
+Note: The other declaration is here:
+   --> project:/contracts/BiometricRegistry.sol:533:5:
+    |
+533 |     function isEnrollmentCenter(address nodeAddress) external view returns (bool) {
+    |     ^ (Relevant source part starts here and spans across multiple lines).
+
+,Warning: This declaration has the same name as another declaration.
+   --> project:/contracts/BiometricRegistry.sol:469:13:
+    |
+469 |             bool isEnrollmentCenter,
+    |             ^^^^^^^^^^^^^^^^^^^^^^^
+Note: The other declaration is here:
+   --> project:/contracts/BiometricRegistry.sol:533:5:
+    |
+533 |     function isEnrollmentCenter(address nodeAddress) external view returns (bool) {
+    |     ^ (Relevant source part starts here and spans across multiple lines).
+
+
+> Artifacts written to C:\Users\K.M.Dhoni\Downloads\Blockchain_Face_With_ZKP_AND_IPFS_WithoutNMAndBuild2_new2\Blockchain_Face_With_ZKP_AND_IPFS_WithoutNMAndBuild2_new1\Blockchain_Face_With_ZKP_AND_IPFS_WithoutNMAndBuild2\build\contracts
+> Compiled successfully using:
+   - solc: 0.8.20+commit.a1b79de6.Emscripten.clang
+
+
+Starting migrations...
+======================
+> Network name:    'development'
+> Network id:      1774693753580
+> Block gas limit: 30000000 (0x1c9c380)
+
+
+1_initial_migration.js
+======================
+
+   Deploying 'Migrations'
+   ----------------------
+ *** Deployment Failed ***
+
+"Migrations" could not deploy due to insufficient funds
+   * Account:  0x0EC20F021C4a2C3149BfcCd59Ac5fBa5576C54C6
+   * Balance:  0 wei
+   * Message:  insufficient funds for gas * price + value
+   * Try:
+      + Using an adequately funded account
+      + If you are using a local Geth node, verify that your node is synced.
+
+
+Exiting: Review successful transactions manually by checking the transaction hashes above on Etherscan.
+
+
+Error:  *** Deployment Failed ***
+
+"Migrations" could not deploy due to insufficient funds
+   * Account:  0x0EC20F021C4a2C3149BfcCd59Ac5fBa5576C54C6
+   * Balance:  0 wei
+   * Message:  insufficient funds for gas * price + value
+   * Try:
+      + Using an adequately funded account
+      + If you are using a local Geth node, verify that your node is synced.
+
+    at C:\Users\K.M.Dhoni\Downloads\Blockchain_Face_With_ZKP_AND_IPFS_WithoutNMAndBuild2_new2\Blockchain_Face_With_ZKP_AND_IPFS_WithoutNMAndBuild2_new1\Blockchain_Face_With_ZKP_AND_IPFS_WithoutNMAndBuild2\node_modules\truffle\build\webpack:\packages\deployer\src\deployment.js:330:1
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+Truffle v5.11.5 (core: 5.11.5)
+Node v22.19.0

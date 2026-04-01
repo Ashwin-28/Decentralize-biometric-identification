@@ -1,0 +1,130 @@
+/* About Page Styles */
+
+.about-page .page-header {
+  margin-bottom: 4rem;
+}
+
+.about-page .page-header h1 {
+  margin: 0.75rem 0 0.5rem;
+}
+
+/* Sections */
+.about-section {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 2rem 0;
+}
+
+.section-content h2 {
+  font-size: 1.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.section-content p {
+  color: var(--text-secondary);
+  line-height: 1.8;
+  margin-bottom: 1.25rem;
+}
+
+/* Tech Cards */
+.tech-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  margin-top: 2rem;
+}
+
+.tech-card {
+  padding: 2rem;
+}
+
+.tech-card h4 {
+  font-size: 1.1rem;
+  margin-bottom: 1rem;
+}
+
+.tech-card p {
+  margin-bottom: 0;
+}
+
+/* FCS Steps */
+.fcs-steps {
+  margin-top: 2rem;
+}
+
+.fcs-step {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 2rem;
+  margin-bottom: 1.5rem;
+}
+
+.fcs-step-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.fcs-step-num {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent-gold);
+  color: var(--bg-deep);
+  font-family: 'Playfair Display', serif;
+  font-size: 1.25rem;
+  font-weight: 600;
+  border-radius: 50%;
+}
+
+.fcs-step h4 {
+  font-size: 1.1rem;
+  margin: 0;
+}
+
+.fcs-step p {
+  margin-bottom: 1rem;
+}
+
+.fcs-step p:last-child {
+  margin-bottom: 0;
+}
+
+.fcs-step code {
+  font-family: 'Space Grotesk', monospace;
+  font-size: 0.9em;
+  color: var(--accent-gold);
+  background: var(--bg-glass);
+  padding: 0.15em 0.4em;
+  border-radius: var(--radius-sm);
+}
+
+/* References */
+.references {
+  list-style: none;
+  margin-top: 1.5rem;
+}
+
+.references li {
+  padding: 1.25rem;
+  margin-bottom: 1rem;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  line-height: 1.6;
+}
+
+.references li strong {
+  color: var(--text-pure);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .about-section {
+    padding: 1rem 0;
+  }
+}

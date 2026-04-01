@@ -1,0 +1,422 @@
+/* ── Enroll Page ── */
+.enroll-page .page-header { margin-bottom: 3rem; }
+.enroll-page .page-header h1 { margin: 0.75rem 0 0.5rem; }
+
+/* Progress Steps */
+.progress-steps {
+  display: flex;
+  justify-content: center;
+  gap: 2rem;
+  margin-bottom: 3rem;
+}
+.progress-step {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+.progress-step.active { color: var(--accent-gold); }
+.step-num {
+  width: 28px; height: 28px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 50%;
+  border: 1px solid currentColor;
+  font-size: 0.75rem; font-weight: 600;
+}
+.progress-step.active .step-num {
+  background: var(--accent-gold);
+  color: var(--bg-deep);
+  border-color: var(--accent-gold);
+}
+
+/* Enroll Content */
+.enroll-content { max-width: 600px; margin: 0 auto; padding: 3rem; }
+.step-content h3 { margin-bottom: 1.5rem; }
+.form-group { margin-bottom: 2rem; }
+
+/* Biometric Options */
+.biometric-options {
+  display: flex; gap: 1rem; margin-top: 0.5rem;
+}
+.option-btn {
+  flex: 1; padding: 1rem;
+  background: var(--bg-glass);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  font-size: 0.9rem; cursor: pointer;
+  transition: all 0.3s;
+  display: flex; flex-direction: column; align-items: center; gap: 0.4rem;
+}
+.option-btn:hover { border-color: var(--border-medium); color: var(--text-primary); }
+.option-btn.selected {
+  border-color: var(--accent-gold);
+  color: var(--accent-gold);
+  background: var(--accent-gold-glow);
+}
+.option-icon { font-size: 1.4rem; }
+
+/* ── Eye Side Selector ── */
+.eye-side-group { margin-bottom: 2rem; }
+.label-hint {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-top: 0.25rem;
+  margin-bottom: 0.75rem;
+}
+.eye-side-options {
+  display: flex; gap: 1rem; margin-top: 0.5rem;
+}
+.eye-side-btn {
+  flex: 1; padding: 1rem 1.5rem;
+  background: var(--bg-glass);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  font-size: 0.95rem; cursor: pointer;
+  transition: all 0.3s;
+  display: flex; align-items: center; gap: 0.6rem;
+}
+.eye-side-btn:hover { border-color: var(--border-medium); color: var(--text-primary); }
+.eye-side-btn.selected {
+  border-color: var(--accent-gold);
+  color: var(--accent-gold);
+  background: var(--accent-gold-glow);
+  font-weight: 600;
+}
+.eye-side-icon { font-size: 1.2rem; }
+.eye-check { margin-left: auto; font-size: 1rem; color: var(--accent-gold); }
+
+/* ── Sensor Info Banner ── */
+.sensor-info-banner {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+  background: rgba(191, 155, 48, 0.08);
+  border: 1px solid rgba(191, 155, 48, 0.25);
+  border-radius: var(--radius-md);
+  padding: 1rem 1.25rem;
+  margin-bottom: 2rem;
+}
+.sensor-info-icon { font-size: 1.3rem; flex-shrink: 0; margin-top: 0.1rem; }
+.sensor-info-banner strong { display: block; color: var(--accent-gold); margin-bottom: 0.25rem; }
+.sensor-info-banner p { margin: 0; font-size: 0.85rem; color: var(--text-secondary); }
+
+/* ── Capture Instruction ── */
+.capture-instruction {
+  text-align: center;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  margin-bottom: 1rem;
+  padding: 0.75rem 1rem;
+  background: var(--bg-glass);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+}
+
+/* ── Eye Side Reminder ── */
+.eye-side-reminder {
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--accent-gold);
+  margin-bottom: 1rem;
+  padding: 0.5rem 1rem;
+  background: var(--accent-gold-glow);
+  border-radius: var(--radius-md);
+}
+
+/* ── Webcam ── */
+.webcam-container {
+  position: relative;
+  width: 100%; max-width: 400px;
+  margin: 0 auto 2rem;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+}
+.webcam { width: 100%; display: block; }
+.webcam-overlay {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  pointer-events: none;
+}
+
+/* Facial guide */
+.facial-guide {
+  width: 200px; height: 260px;
+  border: 2px dashed var(--accent-gold);
+  border-radius: 50% 50% 45% 45%;
+  opacity: 0.6;
+  box-shadow: 0 0 0 1000px rgba(0,0,0,0.4);
+}
+
+/* ── Voice Capture UI ── */
+.voice-capture-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 1rem 0;
+}
+.voice-visualizer {
+  width: 150px;
+  height: 150px;
+  border-radius: 50%;
+  background: var(--bg-glass);
+  border: 2px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  transition: all 0.3s;
+}
+.voice-visualizer.active {
+  border-color: var(--accent-ruby);
+  box-shadow: 0 0 20px rgba(239, 68, 68, 0.2);
+}
+.mic-placeholder { font-size: 3rem; opacity: 0.5; }
+.recording-wave {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 40px;
+}
+.recording-wave span {
+  width: 6px;
+  background: var(--accent-ruby);
+  border-radius: 3px;
+  animation: wave-bounce 1s ease-in-out infinite;
+}
+.recording-wave span:nth-child(2) { animation-delay: 0.1s; height: 30px; }
+.recording-wave span:nth-child(3) { animation-delay: 0.2s; height: 45px; }
+.recording-wave span:nth-child(4) { animation-delay: 0.3s; height: 25px; }
+.recording-wave span:nth-child(5) { animation-delay: 0.4s; height: 35px; }
+
+@keyframes wave-bounce {
+  0%, 100% { transform: scaleY(0.7); opacity: 0.5; }
+  50% { transform: scaleY(1.3); opacity: 1; }
+}
+
+.recording-timer {
+  font-family: 'Space Grotesk', monospace;
+  font-size: 1.1rem;
+  color: var(--accent-ruby);
+  font-weight: 600;
+}
+
+.voice-preview {
+  padding: 2rem;
+  text-align: center;
+  background: var(--bg-glass);
+}
+.audio-preview {
+  margin-top: 1rem;
+  width: 100%;
+  height: 40px;
+}
+
+.btn-ruby {
+  background: rgba(239, 68, 68, 0.2);
+  border: 1px solid #ef4444;
+  color: #ef4444;
+}
+.btn-ruby:hover {
+  background: #ef4444;
+  color: white;
+}
+
+/* ── Fingerprint Sensor UI ── */
+.sensor-capture-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2rem;
+  padding: 1rem 0;
+}
+.sensor-visual { text-align: center; }
+.sensor-ring {
+  width: 150px; height: 150px;
+  border-radius: 50%;
+  border: 3px solid var(--accent-gold);
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 1rem;
+  position: relative;
+  background: rgba(191,155,48,0.05);
+  transition: all 0.3s;
+}
+.sensor-ring.scanning {
+  border-color: var(--accent-emerald);
+  box-shadow: 0 0 20px rgba(16,185,129,0.3);
+  animation: sensor-pulse 1.5s ease-in-out infinite;
+}
+@keyframes sensor-pulse {
+  0%, 100% { box-shadow: 0 0 10px rgba(16,185,129,0.2); }
+  50% { box-shadow: 0 0 30px rgba(16,185,129,0.5); }
+}
+.sensor-icon { font-size: 3.5rem; }
+.sensor-scan-line {
+  position: absolute;
+  left: 10%; right: 10%;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--accent-emerald), transparent);
+  animation: scan-move 1.2s ease-in-out infinite;
+}
+@keyframes scan-move {
+  0% { top: 20%; opacity: 0; }
+  20% { opacity: 1; }
+  80% { opacity: 1; }
+  100% { top: 80%; opacity: 0; }
+}
+.sensor-label {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  margin: 0;
+}
+.sensor-steps {
+  display: flex; flex-direction: column; gap: 0.6rem;
+  align-self: stretch;
+  background: var(--bg-glass);
+  border-radius: var(--radius-md);
+  padding: 1rem 1.5rem;
+  border: 1px solid var(--border-subtle);
+}
+.sensor-step {
+  display: flex; align-items: center; gap: 0.75rem;
+  font-size: 0.85rem; color: var(--text-secondary);
+}
+.sensor-step span {
+  width: 22px; height: 22px;
+  background: var(--accent-gold);
+  color: var(--bg-deep);
+  border-radius: 50%;
+  font-size: 0.75rem; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+
+/* ── Progressive Scan UI ── */
+.scan-progress-container { width: 100%; margin-top: 1rem; }
+.progress-bar-wrapper {
+  height: 8px; width: 100%;
+  background: var(--bg-glass);
+  border-radius: 4px;
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+  margin-bottom: 0.5rem;
+}
+.progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent-gold), var(--accent-emerald));
+  transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.progress-text {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  text-align: right;
+  font-weight: 600;
+}
+
+.sensor-ring.progressive {
+  background: radial-gradient(circle at center, rgba(191,155,48,0.1), transparent);
+}
+
+.fingerprint-fill-mask {
+  position: absolute;
+  inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden;
+}
+
+.fingerprint-icon-bg {
+  font-size: 3.5rem;
+  opacity: 0.2;
+}
+
+.fingerprint-icon-filled {
+  position: absolute;
+  font-size: 3.5rem;
+  color: var(--accent-gold);
+  clip-path: inset(calc(100% - var(--fill-percent)) 0 0 0);
+  transition: clip-path 0.5s ease-out;
+}
+
+.instruction-bubble {
+  background: var(--accent-gold-glow);
+  border: 1px solid var(--accent-gold);
+  border-radius: var(--radius-md);
+  padding: 0.75rem 1rem;
+  margin-top: 1.5rem;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  text-align: center;
+  animation: slide-up 0.3s ease-out;
+}
+
+@keyframes slide-up {
+  from { transform: translateY(10px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+/* ── Captured Preview ── */
+.captured-preview {
+  max-width: 300px;
+  margin: 0 auto 2rem;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+}
+.captured-preview img { width: 100%; display: block; }
+.fp-preview { text-align: center; }
+.fp-preview img { width: 100%; display: block; filter: contrast(1.2); }
+.fp-preview-label {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  padding: 0.5rem;
+  background: var(--bg-glass);
+}
+.confirm-eye-tag {
+  text-align: center;
+  font-size: 0.9rem;
+  color: var(--accent-gold);
+  margin-bottom: 1.5rem;
+}
+
+/* ── Action Buttons ── */
+.action-buttons {
+  display: flex; gap: 1rem; justify-content: center;
+}
+.action-buttons.centered { margin-top: 1rem; }
+
+/* ── Error ── */
+.error-message {
+  background: rgba(239,68,68,0.1);
+  border: 1px solid rgba(239,68,68,0.3);
+  color: #ef4444;
+  padding: 1rem;
+  border-radius: var(--radius-md);
+  margin-bottom: 1.5rem;
+  font-size: 0.9rem;
+}
+
+/* ── Success State ── */
+.success-icon {
+  width: 80px; height: 80px;
+  margin: 0 auto 1.5rem;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 2.5rem;
+  color: var(--accent-emerald);
+  border: 2px solid var(--accent-emerald);
+  border-radius: 50%;
+}
+.result-details { margin: 2rem 0; padding: 1.5rem; text-align: left; }
+.result-item {
+  display: flex; justify-content: space-between;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.result-item:last-child { border-bottom: none; }
+.result-label { color: var(--text-secondary); font-size: 0.9rem; }
+.result-value { color: var(--text-primary); font-size: 0.9rem; }
+.result-value.mono { font-family: 'Space Grotesk', monospace; font-size: 0.8rem; }
+.important-note { color: var(--accent-gold); font-size: 0.9rem; margin-top: 1rem; }

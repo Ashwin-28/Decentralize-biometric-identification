@@ -1,0 +1,275 @@
+/* Dashboard Page Styles */
+
+.dashboard-page .page-header {
+  margin-bottom: 3rem;
+}
+
+.dashboard-page .page-header h1 {
+  margin: 0.75rem 0 0.5rem;
+}
+
+/* Loading State */
+.loading-state {
+  padding: 4rem 0;
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  margin: 0 auto 1rem;
+  border: 3px solid var(--border-subtle);
+  border-top-color: var(--accent-gold);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Stats Grid */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1.5rem;
+  margin-bottom: 3rem;
+}
+
+.stat-card {
+  text-align: center;
+  padding: 2rem;
+}
+
+.stat-label {
+  display: block;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--accent-gold);
+  margin-bottom: 1rem;
+}
+
+.stat-value {
+  display: block;
+  font-family: 'Playfair Display', serif;
+  font-size: 3rem;
+  font-weight: 600;
+  color: var(--text-pure);
+  line-height: 1;
+  margin-bottom: 0.5rem;
+}
+
+.stat-desc {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+/* Blockchain Section */
+.blockchain-section {
+  margin-bottom: 3rem;
+}
+
+.blockchain-section h2,
+.system-section h2 {
+  font-size: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.blockchain-card {
+  padding: 2rem;
+}
+
+.blockchain-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 2rem;
+}
+
+.bc-item {
+  text-align: center;
+}
+
+.bc-label {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-bottom: 0.5rem;
+}
+
+.bc-value {
+  font-size: 0.95rem;
+  color: var(--text-primary);
+}
+
+.bc-value.connected {
+  color: var(--accent-emerald);
+}
+
+.bc-value.disconnected {
+  color: var(--text-muted);
+}
+
+.bc-value.mono {
+  font-family: 'Space Grotesk', monospace;
+  font-size: 0.85rem;
+}
+
+/* System Section */
+.system-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1.5rem;
+}
+
+.system-card {
+  text-align: center;
+  padding: 2rem;
+}
+
+.system-icon {
+  font-size: 2rem;
+  margin-bottom: 1rem;
+}
+
+.system-card h4 {
+  font-size: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.system-card p {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+  .stats-grid,
+  .blockchain-grid,
+  .system-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 600px) {
+  .stats-grid,
+  .blockchain-grid,
+  .system-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Database Explorer */
+.db-section {
+  margin-top: 3rem;
+  margin-bottom: 3rem;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.tabs {
+  display: flex;
+  gap: 0.5rem;
+  background: var(--bg-card);
+  padding: 0.5rem;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-color);
+}
+
+.tab-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  padding: 0.5rem 1.5rem;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.tab-btn:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.tab-btn.active {
+  background: var(--primary-color);
+  color: #fff;
+}
+
+.db-content {
+  padding: 0;
+  overflow: hidden;
+}
+
+.table-responsive {
+  overflow-x: auto;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.data-table th,
+.data-table td {
+  padding: 1rem 1.5rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.data-table th {
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--text-muted);
+  font-weight: 500;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.data-table tr:last-child td {
+  border-bottom: none;
+}
+
+.data-table tr:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.copy-btn {
+  background: transparent;
+  border: none;
+  color: var(--primary-color);
+  cursor: pointer;
+  margin-left: 0.8rem;
+  padding: 0.2rem;
+  font-size: 1.1rem;
+  transition: transform 0.2s;
+}
+
+.copy-btn:hover {
+  transform: scale(1.1);
+}
+
+.status-badge {
+  padding: 0.25rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.status-badge.success {
+  background: rgba(16, 185, 129, 0.1);
+  color: #10b981;
+}
+
+.status-badge.failure {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}

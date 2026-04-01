@@ -1,0 +1,57 @@
+# ================================================
+# Decentralized Biometric Identity Verification
+# Python Backend Dependencies
+# ================================================
+
+# Web Framework
+Flask==3.0.0
+Flask-CORS==4.0.0
+Werkzeug==3.0.1
+
+# Blockchain Integration
+web3==6.11.3
+eth-account==0.10.0
+
+# Computer Vision & Biometrics
+opencv-python>=4.8.0
+face-recognition>=1.3.0
+dlib>=19.24.0
+SpeechRecognition==3.10.0
+librosa==0.10.1
+pydub==0.25.1
+fuzzywuzzy>=0.18.0
+python-Levenshtein>=0.23.0
+pyaudio>=0.2.14
+
+# Deep Learning
+tensorflow>=2.16.0
+numpy>=1.26.0
+deepface>=0.0.79
+# Note: DeepFace includes RetinaFace, MTCNN, and other detectors
+
+# Cryptography
+cryptography==41.0.7
+
+# IPFS Client (optional)
+ipfshttpclient==0.8.0a2
+
+# Image Processing
+Pillow==10.1.0
+
+# Environment & Utilities
+python-dotenv==1.0.0
+requests==2.31.0
+
+# Database
+SQLAlchemy==2.0.23
+pymongo==4.6.0
+
+# Machine Learning
+scikit-learn==1.3.2
+
+# Testing
+pytest==7.4.3
+pytest-cov==4.1.0
+
+# Production WSGI Server
+gunicorn==21.2.0
