@@ -130,6 +130,58 @@ contract = None # Main Registry
 fp_contract = None # FingerprintRegistry
 voice_auth_contract = None # VoiceAuth (New Dual-Gate)
 
+
+def _load_artifact(contract_name):
+    """Load a Truffle artifact from build/contracts."""
+    candidate_paths = [
+        os.path.abspath(os.path.join(os.path.dirname(__file__), 'build', 'contracts', f'{contract_name}.json')),
+        os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'build', 'contracts', f'{contract_name}.json')),
+        os.path.abspath(os.path.join('/build/contracts', f'{contract_name}.json')),
+    ]
+
+    for artifact_path in candidate_paths:
+        if os.path.exists(artifact_path):
+            with open(artifact_path, 'r', encoding='utf-8') as f:
+                return json.load(f)
+
+    return None
+
+
+def _resolve_deployed_address(artifact_json, preferred_address=''):
+    """Resolve the most appropriate deployed address for the connected chain."""
+    if not artifact_json:
+        return preferred_address or ''
+
+    networks = artifact_json.get('networks', {}) or {}
+    if not networks:
+        return preferred_address or ''
+
+    # Keep caller-provided address if it exists in the artifact deployments.
+    if preferred_address:
+        preferred_lower = preferred_address.lower()
+        for deployment in networks.values():
+            addr = deployment.get('address')
+            if addr and addr.lower() == preferred_lower:
+                return addr
+
+    # Prefer the currently connected chain ID when available.
+    if w3 and w3.is_connected():
+        chain_id_key = str(w3.eth.chain_id)
+        chain_deployment = networks.get(chain_id_key, {})
+        chain_address = chain_deployment.get('address')
+        if chain_address:
+            return chain_address
+
+    # Common local Ganache fallback.
+    local_deployment = networks.get('1337', {})
+    local_address = local_deployment.get('address')
+    if local_address:
+        return local_address
+
+    # Last fallback: first deployment entry.
+    first_deployment = next(iter(networks.values()))
+    return first_deployment.get('address', preferred_address or '')
+
 def get_sender_account():
     """Get the account to use for transactions"""
     if PRIVATE_KEY:
@@ -147,74 +199,67 @@ def get_sender_account():
 
 def init_blockchain():
     """Initialize Web3 and contract connection"""
-    global w3, contract, voice_auth_contract
+    global w3, contract, fp_contract, voice_auth_contract, CONTRACT_ADDRESS
     
     try:
         w3 = Web3(Web3.HTTPProvider(BLOCKCHAIN_URL))
+        if not w3.is_connected():
+            print(f"[WARN] Cannot connect to blockchain provider: {BLOCKCHAIN_URL}")
+            return
+
         if ExtraDataToRPCMiddleware:
             w3.middleware_onion.inject(ExtraDataToRPCMiddleware, layer=0)
-        
-        if CONTRACT_ADDRESS:
-            abi_path = os.path.join(
-                os.path.dirname(__file__), 
-                '..', 'build', 'contracts', 'BiometricRegistry.json'
-            )
-            if os.path.exists(abi_path):
-                with open(abi_path, 'r', encoding='utf-8') as f:
-                    contract_json = json.load(f)
-                    contract = w3.eth.contract(
-                        address=Web3.to_checksum_address(CONTRACT_ADDRESS),
-                        abi=contract_json['abi']
-                    )
 
-                # Load FingerprintRegistry as well
-                fp_abi_path = os.path.join(
-                    os.path.dirname(__file__), 
-                    '..', 'build', 'contracts', 'FingerprintRegistry.json'
+        contract_json = _load_artifact('BiometricRegistry')
+        if not contract_json:
+            print("[WARN] BiometricRegistry artifact not found - please compile and deploy first")
+            return
+
+        resolved_main_address = _resolve_deployed_address(contract_json, CONTRACT_ADDRESS)
+        if not resolved_main_address:
+            print("[WARN] No BiometricRegistry deployment found in artifact networks")
+            return
+
+        CONTRACT_ADDRESS = resolved_main_address
+        contract = w3.eth.contract(
+            address=Web3.to_checksum_address(CONTRACT_ADDRESS),
+            abi=contract_json['abi']
+        )
+
+        # Load FingerprintRegistry as well
+        fp_json = _load_artifact('FingerprintRegistry')
+        if fp_json:
+            preferred_fp = os.environ.get('FP_CONTRACT_ADDRESS', '')
+            fp_addr = _resolve_deployed_address(fp_json, preferred_fp)
+            if fp_addr:
+                fp_contract = w3.eth.contract(
+                    address=Web3.to_checksum_address(fp_addr),
+                    abi=fp_json['abi']
                 )
-                if os.path.exists(fp_abi_path):
-                    with open(fp_abi_path, 'r', encoding='utf-8') as f:
-                        fp_json = json.load(f)
-                        fp_addr = fp_json.get('networks', {}).get('1337', {}).get('address')
-                        if fp_addr:
-                            global fp_contract
-                            fp_contract = w3.eth.contract(
-                                address=Web3.to_checksum_address(fp_addr),
-                                abi=fp_json['abi']
-                            )
-                            print(f"[OK] FingerprintRegistry loaded: {fp_addr}")
+                print(f"[OK] FingerprintRegistry loaded: {fp_addr}")
 
-                # Load VoiceAuth (Dual-Gate)
-                from modules.voice_engine import VOICE_AUTH_ABI
-                # Attempt to find VoiceAuth address from truffle-style networks or address.txt
-                voice_addr = None
-                voice_abi_path = os.path.join(os.path.dirname(__file__), '..', 'build', 'contracts', 'VoiceAuth.json')
-                if os.path.exists(voice_abi_path):
-                    with open(voice_abi_path, 'r', encoding='utf-8') as f:
-                        vjson = json.load(f)
-                        voice_addr = vjson.get('networks', {}).get('1337', {}).get('address')
-                
-                if not voice_addr:
-                    # Fallback to address.txt parsing if needed
-                    # For this task, we will try the one we saw: 0x73...
-                    voice_addr = "0x7322aB159F880bbd3A85930CC417a2CAD908304f3"
-                
-                if voice_addr:
-                    voice_auth_contract = w3.eth.contract(
-                        address=Web3.to_checksum_address(voice_addr),
-                        abi=VOICE_AUTH_ABI
-                    )
-                    print(f"[OK] VoiceAuth (Dual-Gate) loaded: {voice_addr}")
-                
-                print(f"[OK] Connected to blockchain at {BLOCKCHAIN_URL}")
-                print(f"[OK] Contract loaded: {CONTRACT_ADDRESS}")
-            else:
-                print("[WARN] Contract ABI not found - please compile and deploy first")
-        else:
-            print("[WARN] No contract address - running in demo mode")
+        # Load VoiceAuth (Dual-Gate)
+        from modules.voice_engine import VOICE_AUTH_ABI
+        vjson = _load_artifact('VoiceAuth')
+        preferred_voice = os.environ.get('VOICE_AUTH_ADDRESS', '')
+        voice_addr = _resolve_deployed_address(vjson, preferred_voice)
+
+        if voice_addr:
+            voice_auth_contract = w3.eth.contract(
+                address=Web3.to_checksum_address(voice_addr),
+                abi=VOICE_AUTH_ABI
+            )
+            print(f"[OK] VoiceAuth (Dual-Gate) loaded: {voice_addr}")
+
+        print(f"[OK] Connected to blockchain at {BLOCKCHAIN_URL}")
+        print(f"[OK] Contract loaded: {CONTRACT_ADDRESS}")
             
     except Exception as e:
         print(f"[ERR] Blockchain initialization failed: {e}")
+
+
+# Initialize blockchain on import so Gunicorn workers also connect.
+init_blockchain()
 
 
 # ===========================================================================
@@ -669,17 +714,22 @@ def fingerprint_sensor_status():
 
 @app.route('/api/check-user', methods=['POST'])
 def check_user_exists():
-    """Verify if a user exists by name."""
-    data = request.json
-    name = data.get('name', '').strip()
-    if not name:
-        return jsonify({'exists': False, 'error': 'Name required'}), 400
-    
-    subject = db_service.get_subject_by_name(name)
+    """Verify if a user exists by name, subject ID, or subject code."""
+    data = request.get_json(silent=True) or {}
+    query = str(data.get('query') or data.get('name') or data.get('subject_id') or data.get('identifier') or '').strip()
+    if not query:
+        return jsonify({'exists': False, 'error': 'Name or subject ID required'}), 400
+
+    subject = db_service.get_subject(query)
+    if not subject:
+        subject = db_service.get_subject_by_name(query)
+
     if subject:
         return jsonify({
             'exists': True, 
             'subject_id': subject['subject_id'],
+            'subject_code': subject.get('subject_code'),
+            'name': subject.get('name'),
             'biometric_type': subject['biometric_type']
         })
     return jsonify({'exists': False, 'message': 'User not found'})
@@ -2568,6 +2618,5 @@ if __name__ == '__main__':
         sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
         sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
         
-    init_blockchain()
     print("🚀 Starting Biometric Identity Backend on http://localhost:5000")
     app.run(host='0.0.0.0', port=5000, debug=False)

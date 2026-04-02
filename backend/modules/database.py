@@ -7,12 +7,14 @@ import os
 import json
 from datetime import datetime
 from typing import Optional, Dict, Any
+from urllib.parse import urlparse
 
 # ==================== Dependencies ====================
 try:
     from sqlalchemy import create_engine, Column, Integer, String, Float, Boolean, DateTime, Text, ForeignKey
     from sqlalchemy.ext.declarative import declarative_base
     from sqlalchemy.orm import sessionmaker, relationship
+    from sqlalchemy.exc import OperationalError
     SQLALCHEMY_AVAILABLE = True
 except ImportError:
     SQLALCHEMY_AVAILABLE = False
@@ -172,7 +174,12 @@ class SqlDatabaseService:
         if self.available:
             self.engine = create_engine(DATABASE_URL, echo=False)
             self.SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=self.engine)
-            Base.metadata.create_all(bind=self.engine)
+            try:
+                Base.metadata.create_all(bind=self.engine)
+            except OperationalError as e:
+                # Gunicorn may start multiple workers; SQLite table creation can race during boot.
+                if 'already exists' not in str(e).lower():
+                    raise
             # Migrate: add fingerprint_hash column if missing (for existing databases)
             self._migrate_fingerprint_hash()
             print("[OK] SQLite initialized successfully")
@@ -417,8 +424,11 @@ class MongoDatabaseService:
         self.available = PYMONGO_AVAILABLE
         if self.available:
             try:
-                self.client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=2000)
-                self.db_name = MONGO_URI.rsplit('/', 1)[-1] if '/' in MONGO_URI else 'biometric_identity'
+                # Azure Cosmos DB Mongo API does not support retryable writes.
+                self.client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=2000, retryWrites=False)
+                parsed_uri = urlparse(MONGO_URI)
+                path_db_name = parsed_uri.path.lstrip('/').split('/')[0] if parsed_uri.path else ''
+                self.db_name = path_db_name or os.getenv('MONGO_DB_NAME', 'biometric_identity')
                 self.db = self.client[self.db_name]
                 # Test connection
                 self.client.server_info()

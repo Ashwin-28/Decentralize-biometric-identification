@@ -100,51 +100,56 @@ except ImportError:
     TORCH_AVAILABLE = False
     print("[WARN] PyTorch/Torchvision not installed")
 
-class DeepIrisNet(nn.Module):
-    """Deep Neural Network for Iris and Fingerprint feature extraction"""
-    def __init__(self, embedding_size=512):
-        super(DeepIrisNet, self).__init__()
-        # Load pretrained ResNet50
-        base_model = models.resnet50(pretrained=True)
-        # Remove classification and pooling
-        self.backbone = nn.Sequential(*list(base_model.children())[:-2])
-        
-        # Dual pooling to capture both global structure and local textures
-        self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
-        self.maxpool = nn.AdaptiveMaxPool2d((1, 1))
-        
-        # More discriminative head with bottleneck and dropout for robustness
-        self.head = nn.Sequential(
-            nn.Linear(2048 * 2, 1024),
-            nn.BatchNorm1d(1024),
-            nn.LeakyReLU(0.1),
-            nn.Dropout(0.2),
-            nn.Linear(1024, embedding_size)
-        )
-        
-        # Orthogonal initialization helps preserve variance in pre-trained features
-        for m in self.head.modules():
-            if isinstance(m, nn.Linear):
-                nn.init.orthogonal_(m.weight, gain=1.0)
-                if m.bias is not None:
-                    nn.init.constant_(m.bias, 0)
-        
-    def forward(self, x):
-        features = self.backbone(x)
-        
-        # Apply dual pooling
-        ap = self.avgpool(features).view(features.size(0), -1)
-        mp = self.maxpool(features).view(features.size(0), -1)
-        
-        # Concatenate features (4096D)
-        x = torch.cat([ap, mp], dim=1)
-        
-        # Project to embedding space
-        x = self.head(x)
-        
-        # Normalize embedding (important for cosine similarity)
-        x = F.normalize(x, p=2, dim=1)
-        return x
+if TORCH_AVAILABLE:
+    class DeepIrisNet(nn.Module):
+        """Deep Neural Network for Iris and Fingerprint feature extraction"""
+        def __init__(self, embedding_size=512):
+            super(DeepIrisNet, self).__init__()
+            # Load pretrained ResNet50
+            base_model = models.resnet50(pretrained=True)
+            # Remove classification and pooling
+            self.backbone = nn.Sequential(*list(base_model.children())[:-2])
+            
+            # Dual pooling to capture both global structure and local textures
+            self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
+            self.maxpool = nn.AdaptiveMaxPool2d((1, 1))
+            
+            # More discriminative head with bottleneck and dropout for robustness
+            self.head = nn.Sequential(
+                nn.Linear(2048 * 2, 1024),
+                nn.BatchNorm1d(1024),
+                nn.LeakyReLU(0.1),
+                nn.Dropout(0.2),
+                nn.Linear(1024, embedding_size)
+            )
+            
+            # Orthogonal initialization helps preserve variance in pre-trained features
+            for m in self.head.modules():
+                if isinstance(m, nn.Linear):
+                    nn.init.orthogonal_(m.weight, gain=1.0)
+                    if m.bias is not None:
+                        nn.init.constant_(m.bias, 0)
+            
+        def forward(self, x):
+            features = self.backbone(x)
+            
+            # Apply dual pooling
+            ap = self.avgpool(features).view(features.size(0), -1)
+            mp = self.maxpool(features).view(features.size(0), -1)
+            
+            # Concatenate features (4096D)
+            x = torch.cat([ap, mp], dim=1)
+            
+            # Project to embedding space
+            x = self.head(x)
+            
+            # Normalize embedding (important for cosine similarity)
+            x = F.normalize(x, p=2, dim=1)
+            return x
+else:
+    class DeepIrisNet:
+        """Fallback placeholder when PyTorch is unavailable."""
+        pass
 
 class BiometricEngine:
     """Biometric feature extraction and comparison engine using DeepFace and PyTorch."""
@@ -160,16 +165,17 @@ class BiometricEngine:
         # Use ArcFace for better accuracy (>70% requirement)
         # Fallback to FaceNet512 if ArcFace fails, then FaceNet
         self.face_model_name = 'ArcFace'  # Best accuracy: ArcFace > FaceNet512 > FaceNet
-        self.detector_backend = 'retinaface'  # Best detection: retinaface > mtcnn > opencv
+        self.detector_backend = 'opencv'  # Faster and lighter for hosted runtime stability
         
         # Initialize DeepFace
         self._warmup_deepface()
         
         # Initialize PyTorch Model for Iris/Fingerprint
-        self.device = torch.device("cuda" if (TORCH_AVAILABLE and torch.cuda.is_available()) else "cpu")
+        self.device = None
         self.secondary_model = None
         if TORCH_AVAILABLE:
             try:
+                self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
                 self.secondary_model = DeepIrisNet(embedding_size=512).to(self.device)
                 self.secondary_model.eval()
                 # Image transform for ResNet50
@@ -223,8 +229,8 @@ class BiometricEngine:
                 if CV2_AVAILABLE:
                     cv2.imwrite(dummy_path, test_image)
                 
-                # Try detectors in order: retinaface > mtcnn > opencv
-                for detector in ['retinaface', 'mtcnn', 'opencv']:
+                # Prefer the fastest detector first so the warmup matches production constraints.
+                for detector in ['opencv', 'mtcnn', 'retinaface']:
                     try:
                         if os.path.exists(dummy_path):
                             DeepFace.represent(
@@ -289,8 +295,8 @@ class BiometricEngine:
             print("[WARN] DeepFace not available, using fallback")
             return self._fallback_features(image_path)
         
-        # Try multiple detector backends in order of accuracy
-        detector_backends = [self.detector_backend, 'retinaface', 'mtcnn', 'opencv']
+        # Try the faster detector first to avoid long blocking calls in Azure.
+        detector_backends = [self.detector_backend, 'opencv', 'mtcnn', 'retinaface']
         
         for detector in detector_backends:
             try:

@@ -1,6 +1,28 @@
 import axios from "axios";
 
-const API_BASE = process.env.REACT_APP_API_URL || "/api";
+const API_FALLBACK =
+  "https://biometric-backend-app.kindstone-7b8f6cd7.southeastasia.azurecontainerapps.io/api";
+
+const normalizeApiBase = (rawValue) => {
+  const input = (rawValue || "").trim();
+  if (!input) return API_FALLBACK;
+
+  // Reject relative URLs like "/api" to prevent static-site origin calls.
+  if (input.startsWith("/")) return API_FALLBACK;
+
+  try {
+    const parsed = new URL(input);
+    if (parsed.hostname.endsWith("web.core.windows.net")) {
+      return API_FALLBACK;
+    }
+    const normalized = input.replace(/\/+$/, "");
+    return normalized.endsWith("/api") ? normalized : `${normalized}/api`;
+  } catch {
+    return API_FALLBACK;
+  }
+};
+
+export const API_BASE = normalizeApiBase(process.env.REACT_APP_API_URL);
 
 const api = axios.create({
   baseURL: API_BASE,
@@ -44,7 +66,14 @@ export const checkLiveness = async (file) => {
 
 // ── Enrollment ──
 // eye_side: 'left' | 'right' | null (only used when type === 'iris')
-export const enrollSubject = async (file, name, type = "facial", eye_side = null, fingerprint_hash = null, spoken_password = null) => {
+export const enrollSubject = async (
+  file,
+  name,
+  type = "facial",
+  eye_side = null,
+  fingerprint_hash = null,
+  spoken_password = null,
+) => {
   const formData = new FormData();
   formData.append("file", file);
   formData.append("name", name);
@@ -60,7 +89,14 @@ export const enrollSubject = async (file, name, type = "facial", eye_side = null
 
 // ── Authentication ──
 // eye_side: 'left' | 'right' | null (only used when type === 'iris')
-export const authenticateSubject = async (file, subjectId, type = "facial", eye_side = null, fingerprint_hash = null, spoken_password = null) => {
+export const authenticateSubject = async (
+  file,
+  subjectId,
+  type = "facial",
+  eye_side = null,
+  fingerprint_hash = null,
+  spoken_password = null,
+) => {
   const formData = new FormData();
   formData.append("file", file);
   formData.append("subject_id", subjectId);
@@ -183,7 +219,12 @@ export const ipfsCat = async (cid) => {
 // ══════════════════════════════════════════════════════════
 //  MULTIMODAL FACE + IRIS API
 // ══════════════════════════════════════════════════════════
-export const multimodalEnroll = async (faceFile, irisFile, name, eye_side = 'left') => {
+export const multimodalEnroll = async (
+  faceFile,
+  irisFile,
+  name,
+  eye_side = "left",
+) => {
   const formData = new FormData();
   formData.append("face_file", faceFile);
   formData.append("voice_file", irisFile);
@@ -195,7 +236,12 @@ export const multimodalEnroll = async (faceFile, irisFile, name, eye_side = 'lef
   return response.data;
 };
 
-export const multimodalAuthenticate = async (faceFile, irisFile, subjectId, eye_side = 'left') => {
+export const multimodalAuthenticate = async (
+  faceFile,
+  irisFile,
+  subjectId,
+  eye_side = "left",
+) => {
   const formData = new FormData();
   formData.append("face_file", faceFile);
   formData.append("voice_file", irisFile);

@@ -7,6 +7,30 @@ import speech_recognition as sr
 from scipy.spatial.distance import cosine
 from scipy.stats import pearsonr
 
+VOICE_AUTH_ABI = [
+    {
+        "inputs": [
+            {"internalType": "string", "name": "userId", "type": "string"},
+            {"internalType": "string", "name": "hashValue", "type": "string"}
+        ],
+        "name": "storeHash",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {"internalType": "string", "name": "userId", "type": "string"}
+        ],
+        "name": "getHash",
+        "outputs": [
+            {"internalType": "string", "name": "", "type": "string"}
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    }
+]
+
 # ─────────────────────────────────────────────
 # STEP 1: Extract stable MFCC voice fingerprint
 # ─────────────────────────────────────────────

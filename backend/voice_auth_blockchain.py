@@ -11,12 +11,14 @@ import hashlib
 import pickle
 import os
 from web3 import Web3
+from dotenv import load_dotenv
+
+load_dotenv(os.path.join(os.path.dirname(__file__), '.env'))
 
 # ---------------- CONFIG ---------------- #
-# Adjusting port to 8545 to match your existing Ganache instance
-GANACHE_URL = "http://127.0.0.1:8545"
-# Note: User should update this after deploying the contract in Remix
-CONTRACT_ADDRESS = "0x0000000000000000000000000000000000000000" 
+# Read provider/address from environment for Docker and cloud portability.
+GANACHE_URL = os.environ.get("BLOCKCHAIN_URL", "http://127.0.0.1:8545")
+CONTRACT_ADDRESS = os.environ.get("VOICE_AUTH_ADDRESS") or os.environ.get("CONTRACT_ADDRESS", "")
 ACCOUNT = None  # will be assigned after connection
 
 # ABI (same as contract)

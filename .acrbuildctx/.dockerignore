@@ -1,0 +1,33 @@
+# Python Bytecodes
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Environment & Credentials
+.env
+.venv/
+venv/
+env/
+.git/
+.gitignore
+
+# Local Data
+*.db
+storage/*.npy
+storage/*.jpg
+storage/*.png
+storage/profiles/*.npy
+storage/profiles/*.jpg
+storage/profiles/*.png
+ganache_db/
+logs/
+*.log
+
+# IDEs
+.vscode/
+.idea/
+
+# Unit tests
+.pytest_cache/
+tests/
