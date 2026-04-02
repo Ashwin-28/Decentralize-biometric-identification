@@ -1,43 +1,84 @@
-import React, { useState, useRef, useCallback } from 'react';
-import Webcam from 'react-webcam';
-import { enrollSubject, checkLiveness, captureFingerprint } from '../services/api';
-import { cropBiometricImage } from '../utils/imageCapture';
-import './Enroll.css';
+import React, { useState, useRef, useCallback } from "react";
+import Webcam from "react-webcam";
+import {
+  enrollSubject,
+  checkLiveness,
+  webauthnRegisterOptions,
+  webauthnRegisterVerify,
+} from "../services/api";
+import { cropBiometricImage } from "../utils/imageCapture";
+import "./Enroll.css";
 
 function Enroll() {
   const webcamRef = useRef(null);
   const [step, setStep] = useState(1);
-  const [name, setName] = useState('');
-  const [biometricType, setBiometricType] = useState('facial');
-  const [eyeSide] = useState('left');
+  const [name, setName] = useState("");
+  const [biometricType, setBiometricType] = useState("facial");
+  const [eyeSide] = useState("left");
   const [capturedImage, setCapturedImage] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSensorCapturing, setIsSensorCapturing] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
-  const [sensorStatus, setSensorStatus] = useState('');
-  const [scanProgress, setScanProgress] = useState(0); // 0 to 100
-  const [scanStep, setScanStep] = useState(0); // 0 to 5
+  const [sensorStatus, setSensorStatus] = useState("");
   const [fingerprintHash, setFingerprintHash] = useState(null); // Store enrolled template hash
 
-  const isFingerprint = biometricType === 'fingerprint';
-  const isVoice = biometricType === 'voice';
+  const isFingerprint = biometricType === "fingerprint";
+  const isVoice = biometricType === "voice";
 
   // Voice recording state
   const [isRecording, setIsRecording] = useState(false);
   const [recorder, setRecorder] = useState(null);
   const [recordingTime, setRecordingTime] = useState(0);
   const timerRef = useRef(null);
-  
+
   // Browser STT state
-  const [spokenPassword, setSpokenPassword] = useState('');
+  const [spokenPassword, setSpokenPassword] = useState("");
   const recognitionRef = useRef(null);
+
+  const base64UrlToUint8Array = (base64Url) => {
+    const padded = `${base64Url}${"=".repeat((4 - (base64Url.length % 4)) % 4)}`
+      .replace(/-/g, "+")
+      .replace(/_/g, "/");
+    const binary = window.atob(padded);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i += 1) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+    return bytes;
+  };
+
+  const arrayBufferToBase64Url = (buffer) => {
+    const bytes = new Uint8Array(buffer);
+    let binary = "";
+    for (let i = 0; i < bytes.length; i += 1) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    return window
+      .btoa(binary)
+      .replace(/\+/g, "-")
+      .replace(/\//g, "_")
+      .replace(/=+$/g, "");
+  };
+
+  const ensureWebAuthn = () => {
+    if (!window.isSecureContext) {
+      throw new Error("Fingerprint on web requires HTTPS (or localhost).");
+    }
+    if (!window.PublicKeyCredential || !navigator.credentials) {
+      throw new Error("This browser does not support WebAuthn credentials.");
+    }
+  };
 
   const capture = useCallback(async () => {
     const imageSrc = webcamRef.current.getScreenshot();
     if (imageSrc) {
       try {
-        const croppedImage = await cropBiometricImage(imageSrc, biometricType, eyeSide);
+        const croppedImage = await cropBiometricImage(
+          imageSrc,
+          biometricType,
+          eyeSide,
+        );
         setCapturedImage(croppedImage);
         setStep(3);
       } catch (err) {
@@ -47,106 +88,80 @@ function Enroll() {
     }
   }, [webcamRef, biometricType, eyeSide]);
 
-  // Fingerprint: trigger sensor capture via backend (Progressive)
+  // Fingerprint: browser-native authenticator prompt (phone/laptop/external)
   const captureSensor = async () => {
-    const controller = new AbortController();
-    const { signal } = controller;
-
     setIsSensorCapturing(true);
     setError(null);
-    setScanProgress(0);
-    setScanStep(0);
-    
-    const TOTAL_STEPS = 5;
-    const instructions = [
-      'Touch the sensor with your finger tip',
-      'Now use the middle part of your finger',
-      'Move slightly to the left side',
-      'Move slightly to the right side',
-      'One last scan — use the tip again'
-    ];
-
-    const runSingleScanWithRetry = async (stepIdx, retryCount = 0) => {
-      const MAX_RETRIES = 2;
-      setScanStep(stepIdx + 1);
-      setSensorStatus(instructions[stepIdx]);
-      
-      try {
-        // Requirement: Check for chrome runtime errors
-        if (window.chrome?.runtime?.lastError) {
-          console.warn('[ENROLL] Extension error detected:', window.chrome.runtime.lastError.message);
-        }
-
-        // Keep-Alive simulation
-        const keepAlive = setInterval(() => {
-          console.debug(`[KEEP-ALIVE] Enrollment Scan ${stepIdx + 1} active...`);
-        }, 3000);
-
-        // Timeout for each individual scan
-        const timeoutId = setTimeout(() => {
-          controller.abort();
-        }, 30000);
-
-        try {
-          // Pass abort signal
-          const data = await captureFingerprint(signal);
-          clearInterval(keepAlive);
-          clearTimeout(timeoutId);
-
-          if (data && data.success && data.image_b64) {
-            const newProgress = Math.min(100, ((stepIdx + 1) / TOTAL_STEPS) * 100);
-            setScanProgress(newProgress);
-            return data;
-          } else {
-            throw new Error(data?.error || 'Sensor capture failed.');
-          }
-        } catch (innerErr) {
-          clearInterval(keepAlive);
-          clearTimeout(timeoutId);
-          if (innerErr.name === 'AbortError') {
-            throw new Error('Connection closed due to timeout. Please try again.');
-          }
-          throw innerErr;
-        }
-      } catch (err) {
-        const isChannelClosed = err.message?.includes('message channel closed') || 
-                               err.message?.includes('AxiosError') ||
-                               err.message?.includes('Network Error');
-                               
-        if (isChannelClosed && retryCount < MAX_RETRIES) {
-          console.warn(`[RETRY] Scan ${stepIdx + 1} interrupted. Retrying...`);
-          setSensorStatus(`Connection lost. Retrying scan ${stepIdx + 1}...`);
-          await new Promise(r => setTimeout(r, 1500));
-          return runSingleScanWithRetry(stepIdx, retryCount + 1);
-        }
-        throw err;
-      }
-    };
-
     try {
-      let finalData = null;
+      ensureWebAuthn();
 
-      for (let i = 0; i < TOTAL_STEPS; i++) {
-        // Small delay between steps for UX
-        await new Promise(resolve => setTimeout(resolve, 800));
-        finalData = await runSingleScanWithRetry(i);
+      if (!name.trim()) {
+        throw new Error(
+          "Please enter your name before fingerprint enrollment.",
+        );
       }
 
-      if (finalData) {
-        setCapturedImage(`data:image/png;base64,${finalData.image_b64}`);
-        // Store the fingerprint hash from the capture for enrollment
-        if (finalData.hash) {
-          setFingerprintHash(finalData.hash);
-          console.log('[ENROLL] Fingerprint hash stored:', finalData.hash.substring(0, 20) + '...');
-        }
-        setSensorStatus('✅ Fingerprint status: REGISTERED');
-        window.alert('✅ Fingerprint Registered Successfully');
-        setStep(3);
+      setSensorStatus("Waiting for your device authenticator prompt...");
+      const optionsPayload = await webauthnRegisterOptions(name.trim());
+      const publicKey = optionsPayload?.publicKey;
+
+      if (
+        !optionsPayload?.token ||
+        !publicKey?.challenge ||
+        !publicKey?.user?.id
+      ) {
+        throw new Error(
+          "Invalid WebAuthn registration options returned by backend.",
+        );
       }
+
+      const credential = await navigator.credentials.create({
+        publicKey: {
+          ...publicKey,
+          challenge: base64UrlToUint8Array(publicKey.challenge),
+          user: {
+            ...publicKey.user,
+            id: base64UrlToUint8Array(publicKey.user.id),
+          },
+        },
+      });
+
+      if (!credential) {
+        throw new Error(
+          "No fingerprint credential was returned by the device.",
+        );
+      }
+
+      const credentialPayload = {
+        id: credential.id,
+        rawId: arrayBufferToBase64Url(credential.rawId),
+        type: credential.type,
+        response: {
+          clientDataJSON: arrayBufferToBase64Url(
+            credential.response.clientDataJSON,
+          ),
+          attestationObject: arrayBufferToBase64Url(
+            credential.response.attestationObject,
+          ),
+        },
+      };
+
+      const verifyResult = await webauthnRegisterVerify(
+        optionsPayload.token,
+        name.trim(),
+        credentialPayload,
+      );
+
+      setFingerprintHash(verifyResult?.credential_id || null);
+      setSensorStatus(
+        "✅ Fingerprint credential enrolled successfully on this device.",
+      );
+      setResult(verifyResult);
+      setStep(4);
     } catch (err) {
-      console.error('Enrollment sensor error:', err);
-      const errMsg = err.message || 'Could not reach sensor.';
-      setSensorStatus('Scan failed.');
+      console.error("Enrollment sensor error:", err);
+      const errMsg = err.message || "Could not reach sensor.";
+      setSensorStatus("Fingerprint enrollment failed.");
       setError(errMsg);
       window.alert(`Scan Failed: ${errMsg}`);
     } finally {
@@ -157,49 +172,59 @@ function Enroll() {
   // ── Voice Recording Logic ──
   const startRecording = async () => {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      const msg = 'Audio recording is not supported in this browser or context (requires HTTPS or localhost).';
+      const msg =
+        "Audio recording is not supported in this browser or context (requires HTTPS or localhost).";
       setError(msg);
       alert(msg);
       return;
     }
-    
+
     try {
-      console.log('Requesting microphone access...');
+      console.log("Requesting microphone access...");
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      console.log('Microphone access granted.');
-      
-      setSpokenPassword(''); // Reset transcript
+      console.log("Microphone access granted.");
+
+      setSpokenPassword(""); // Reset transcript
 
       // Start Browser STT side-by-side
-      if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+      if (
+        "webkitSpeechRecognition" in window ||
+        "SpeechRecognition" in window
+      ) {
         try {
-          const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+          const SpeechRecognition =
+            window.SpeechRecognition || window.webkitSpeechRecognition;
           const recognition = new SpeechRecognition();
           recognition.continuous = true;
           recognition.interimResults = true;
-          recognition.lang = 'en-US';
+          recognition.lang = "en-US";
 
           recognition.onresult = (event) => {
             const transcript = Array.from(event.results)
-              .map(result => result[0].transcript)
-              .join(' ');
+              .map((result) => result[0].transcript)
+              .join(" ");
             setSpokenPassword(transcript);
-            console.debug('[STT-DEBUG] Current transcript:', transcript);
+            console.debug("[STT-DEBUG] Current transcript:", transcript);
           };
 
           recognition.onerror = (event) => {
-            console.warn('[STT-WARN] Speech recognition error:', event.error);
+            console.warn("[STT-WARN] Speech recognition error:", event.error);
           };
 
           recognition.start();
           recognitionRef.current = recognition;
         } catch (sttErr) {
-          console.error('[STT-ERR] Failed to start speech recognition:', sttErr);
+          console.error(
+            "[STT-ERR] Failed to start speech recognition:",
+            sttErr,
+          );
         }
       }
 
       // Determine supported MIME type
-      const mimeType = MediaRecorder.isTypeSupported('audio/wav') ? 'audio/wav' : 'audio/webm';
+      const mimeType = MediaRecorder.isTypeSupported("audio/wav")
+        ? "audio/wav"
+        : "audio/webm";
       console.log(`Using MIME type: ${mimeType}`);
 
       const mediaRecorder = new MediaRecorder(stream, { mimeType });
@@ -208,26 +233,26 @@ function Enroll() {
       mediaRecorder.ondataavailable = (e) => {
         if (e.data.size > 0) {
           chunks.push(e.data);
-          console.debug('Received audio chunk, size:', e.data.size);
+          console.debug("Received audio chunk, size:", e.data.size);
         }
       };
-      
+
       mediaRecorder.onstop = () => {
-        console.log('Recording stopped. Total chunks:', chunks.length);
+        console.log("Recording stopped. Total chunks:", chunks.length);
         const blob = new Blob(chunks, { type: mimeType });
         const url = URL.createObjectURL(blob);
-        setCapturedImage(url); 
+        setCapturedImage(url);
         setAudioBlob(blob);
         setStep(3);
-        
+
         // Stop all tracks
-        stream.getTracks().forEach(track => track.stop());
+        stream.getTracks().forEach((track) => track.stop());
       };
 
       mediaRecorder.onerror = (event) => {
-        console.error('MediaRecorder error:', event.error);
-        setError('Recorder error: ' + (event.error?.name || 'Unknown error'));
-        alert('Recorder error: ' + (event.error?.name || 'Unknown error'));
+        console.error("MediaRecorder error:", event.error);
+        setError("Recorder error: " + (event.error?.name || "Unknown error"));
+        alert("Recorder error: " + (event.error?.name || "Unknown error"));
       };
 
       // Start recording with a timeslice to ensure dataavailable is fired
@@ -235,18 +260,18 @@ function Enroll() {
       setRecorder(mediaRecorder);
       setIsRecording(true);
       setRecordingTime(0);
-      
+
       if (timerRef.current) clearInterval(timerRef.current);
       timerRef.current = setInterval(() => {
-        setRecordingTime(t => t + 1);
+        setRecordingTime((t) => t + 1);
       }, 1000);
-      console.log('Recording started.');
+      console.log("Recording started.");
     } catch (err) {
-      console.error('Error starting recording:', err);
-      let msg = 'Could not access microphone.';
-      if (err.name === 'NotAllowedError') msg = 'Microphone permission denied.';
-      else if (err.name === 'NotFoundError') msg = 'No microphone detected.';
-      setError(msg + ' Please check your browser settings.');
+      console.error("Error starting recording:", err);
+      let msg = "Could not access microphone.";
+      if (err.name === "NotAllowedError") msg = "Microphone permission denied.";
+      else if (err.name === "NotFoundError") msg = "No microphone detected.";
+      setError(msg + " Please check your browser settings.");
       alert(msg);
     }
   };
@@ -256,7 +281,7 @@ function Enroll() {
       recorder.stop();
       setIsRecording(false);
       clearInterval(timerRef.current);
-      
+
       // Stop STT
       if (recognitionRef.current) {
         try {
@@ -282,47 +307,55 @@ function Enroll() {
       const blob = await response.blob();
       let file;
       if (isVoice) {
-        file = new File([blob], 'biometric.wav', { type: 'audio/wav' });
+        file = new File([blob], "biometric.wav", { type: "audio/wav" });
       } else {
-        file = new File([blob], 'biometric.jpg', { type: 'image/jpeg' });
+        file = new File([blob], "biometric.jpg", { type: "image/jpeg" });
       }
 
       // Only run liveness for face/voice (not fingerprint sensor)
       if (!isFingerprint && !isVoice) {
         const liveness = await checkLiveness(file);
         if (!liveness.is_live) {
-          setError('Liveness check failed. Please ensure you are using a live capture.');
+          setError(
+            "Liveness check failed. Please ensure you are using a live capture.",
+          );
           setIsProcessing(false);
           return;
         }
       }
 
       const enrollResult = await enrollSubject(
-        file, name, biometricType, 
+        file,
+        name,
+        biometricType,
         null, // eyeSide removed
         isFingerprint ? fingerprintHash : null,
-        spokenPassword // Pass the captured text if available
+        spokenPassword, // Pass the captured text if available
       );
       setResult(enrollResult);
       setStep(4);
     } catch (err) {
-      setError(err.response?.data?.error || 'Enrollment failed. Please try again.');
+      setError(
+        err.response?.data?.error || "Enrollment failed. Please try again.",
+      );
     } finally {
       setIsProcessing(false);
     }
   };
 
   const getBiometricIcon = (type) => {
-    if (type === 'facial') return '👤';
-    if (type === 'fingerprint') return '👆';
-    if (type === 'voice') return '🎤';
-    return '🔍';
+    if (type === "facial") return "👤";
+    if (type === "fingerprint") return "👆";
+    if (type === "voice") return "🎤";
+    return "🔍";
   };
 
   const getCaptureInstruction = () => {
-    if (isFingerprint) return 'Touch (do not press) the power button sensor lightly';
-    if (isVoice) return 'Click record and say your SECRET PASSWORD clearly. This will be used for future verification.';
-    return 'Position your face inside the guide — look straight at the camera';
+    if (isFingerprint)
+      return "Use your device authenticator prompt to register fingerprint";
+    if (isVoice)
+      return "Click record and say your SECRET PASSWORD clearly. This will be used for future verification.";
+    return "Position your face inside the guide — look straight at the camera";
   };
 
   return (
@@ -331,13 +364,18 @@ function Enroll() {
         <div className="page-header text-center">
           <span className="mono-label">Identity Registration</span>
           <h1>Biometric Enrollment</h1>
-          <p className="text-muted">Register your biometric identity on the blockchain</p>
+          <p className="text-muted">
+            Register your biometric identity on the blockchain
+          </p>
         </div>
 
         {/* Progress Steps */}
         <div className="progress-steps">
-          {['Details', 'Capture', 'Confirm', 'Complete'].map((label, i) => (
-            <div key={label} className={`progress-step ${step >= i + 1 ? 'active' : ''}`}>
+          {["Details", "Capture", "Confirm", "Complete"].map((label, i) => (
+            <div
+              key={label}
+              className={`progress-step ${step >= i + 1 ? "active" : ""}`}
+            >
               <span className="step-num">{i + 1}</span>
               <span>{label}</span>
             </div>
@@ -345,7 +383,6 @@ function Enroll() {
         </div>
 
         <div className="enroll-content card">
-
           {/* ── Step 1: Details ── */}
           {step === 1 && (
             <div className="step-content">
@@ -364,28 +401,31 @@ function Enroll() {
               <div className="form-group">
                 <label className="label">Biometric Type</label>
                 <div className="biometric-options">
-                  {['facial', 'fingerprint', 'voice'].map((type) => (
+                  {["facial", "fingerprint", "voice"].map((type) => (
                     <button
                       key={type}
-                      className={`option-btn ${biometricType === type ? 'selected' : ''}`}
+                      className={`option-btn ${biometricType === type ? "selected" : ""}`}
                       onClick={() => setBiometricType(type)}
                     >
-                      <span className="option-icon">{getBiometricIcon(type)}</span>
+                      <span className="option-icon">
+                        {getBiometricIcon(type)}
+                      </span>
                       {type.charAt(0).toUpperCase() + type.slice(1)}
                     </button>
                   ))}
                 </div>
               </div>
 
-
-
               {/* Fingerprint info banner */}
               {isFingerprint && (
                 <div className="sensor-info-banner">
                   <span className="sensor-info-icon">ℹ️</span>
                   <div>
-                    <strong>Using Power Button Sensor</strong>
-                    <p>Your laptop's capacitive fingerprint sensor will be used — no webcam needed.</p>
+                    <strong>Using Device Fingerprint Authenticator</strong>
+                    <p>
+                      Phone browsers use phone biometrics. Laptops use built-in
+                      or external authenticators.
+                    </p>
                   </div>
                 </div>
               )}
@@ -403,44 +443,35 @@ function Enroll() {
           {/* ── Step 2: Capture ── */}
           {step === 2 && (
             <div className="step-content">
-              <h3>Capture Your {biometricType.charAt(0).toUpperCase() + biometricType.slice(1)}</h3>
+              <h3>
+                Capture Your{" "}
+                {biometricType.charAt(0).toUpperCase() + biometricType.slice(1)}
+              </h3>
 
               {/* Fingerprint: sensor UI */}
               {isFingerprint ? (
                 <div className="sensor-capture-container">
                   <div className="sensor-visual">
-                    <div className={`sensor-ring ${isSensorCapturing ? 'scanning progressive' : ''}`}>
-                      <div className="fingerprint-fill-mask">
-                        <span className="fingerprint-icon-bg">👆</span>
-                        <span 
-                          className="fingerprint-icon-filled" 
-                          style={{ '--fill-percent': `${scanProgress}%` }}
-                        >👆</span>
-                      </div>
-                      {isSensorCapturing && <div className="sensor-scan-line" />}
-                    </div>
-                    
-                    <div className="scan-progress-container">
-                      <div className="progress-bar-wrapper">
-                        <div className="progress-bar-fill" style={{ width: `${scanProgress}%` }}></div>
-                      </div>
-                      <div className="progress-text">{Math.round(scanProgress)}%</div>
+                    <div
+                      className={`sensor-ring ${isSensorCapturing ? "scanning" : ""}`}
+                    >
+                      <div className="sensor-icon">👆</div>
+                      {isSensorCapturing && (
+                        <div className="sensor-scan-line" />
+                      )}
                     </div>
 
-                    {isSensorCapturing && (
-                      <div className="instruction-bubble">
-                        {sensorStatus}
-                      </div>
+                    {(isSensorCapturing || sensorStatus) && (
+                      <div className="instruction-bubble">{sensorStatus}</div>
                     )}
                   </div>
 
-                  {!isSensorCapturing && scanProgress === 0 && (
-                    <div className="sensor-steps">
-                      <div className="sensor-step"><span>1</span> Click "Start Multi-Scan"</div>
-                      <div className="sensor-step"><span>2</span> Touch the power button as instructed</div>
-                      <div className="sensor-step"><span>3</span> Move your finger to fill the icon</div>
-                    </div>
-                  )}
+                  <div className="step-guide mt-md">
+                    <p>
+                      <strong>Step:</strong> Click the button, then touch your
+                      device sensor when prompted by the browser.
+                    </p>
+                  </div>
 
                   {error && <div className="error-message">{error}</div>}
 
@@ -450,7 +481,9 @@ function Enroll() {
                       onClick={captureSensor}
                       disabled={isSensorCapturing}
                     >
-                      {isSensorCapturing ? `Scan ${scanStep}/5 in progress...` : '👆 Start Multi-Scan Enrollment'}
+                      {isSensorCapturing
+                        ? "⏳ Waiting for fingerprint prompt..."
+                        : "👆 Register Fingerprint on This Device"}
                     </button>
                   </div>
                 </div>
@@ -463,36 +496,52 @@ function Enroll() {
 
                   {isVoice ? (
                     <div className="voice-capture-container">
-                      <div className={`voice-visualizer ${isRecording ? 'active' : ''}`}>
+                      <div
+                        className={`voice-visualizer ${isRecording ? "active" : ""}`}
+                      >
                         {isRecording ? (
                           <div className="recording-wave">
-                            <span></span><span></span><span></span><span></span><span></span>
+                            <span></span>
+                            <span></span>
+                            <span></span>
+                            <span></span>
+                            <span></span>
                           </div>
                         ) : (
                           <div className="mic-placeholder">🎤</div>
                         )}
                       </div>
                       <div className="recording-timer">
-                        {isRecording 
-                          ? `Recording: ${recordingTime}s` 
-                          : 'Step 2: Say your unique voice password clearly'}
+                        {isRecording
+                          ? `Recording: ${recordingTime}s`
+                          : "Step 2: Say your unique voice password clearly"}
                       </div>
-                        <div className="action-buttons centered">
-                          {!isRecording ? (
-                            <button className="btn btn-primary" onClick={startRecording}>
-                              ⏺ Start Recording
-                            </button>
-                          ) : (
-                            <button 
-                              className="btn btn-ruby" 
-                              onClick={stopRecording}
-                              disabled={recordingTime < 3}
-                              title={recordingTime < 3 ? `Speak for at least ${3 - recordingTime} more seconds` : 'Stop and save recording'}
-                            >
-                              ⏹ {recordingTime < 3 ? `Speak... (${3 - recordingTime}s)` : 'Stop & Save'}
-                            </button>
-                          )}
-                        </div>
+                      <div className="action-buttons centered">
+                        {!isRecording ? (
+                          <button
+                            className="btn btn-primary"
+                            onClick={startRecording}
+                          >
+                            ⏺ Start Recording
+                          </button>
+                        ) : (
+                          <button
+                            className="btn btn-ruby"
+                            onClick={stopRecording}
+                            disabled={recordingTime < 3}
+                            title={
+                              recordingTime < 3
+                                ? `Speak for at least ${3 - recordingTime} more seconds`
+                                : "Stop and save recording"
+                            }
+                          >
+                            ⏹{" "}
+                            {recordingTime < 3
+                              ? `Speak... (${3 - recordingTime}s)`
+                              : "Stop & Save"}
+                          </button>
+                        )}
+                      </div>
                     </div>
                   ) : (
                     <>
@@ -501,7 +550,7 @@ function Enroll() {
                           ref={webcamRef}
                           audio={false}
                           screenshotFormat="image/jpeg"
-                          videoConstraints={{ facingMode: 'user' }}
+                          videoConstraints={{ facingMode: "user" }}
                           className="webcam"
                         />
                         <div className="webcam-overlay">
@@ -518,7 +567,7 @@ function Enroll() {
                             type="file"
                             accept="image/*"
                             id="file-upload"
-                            style={{ display: 'none' }}
+                            style={{ display: "none" }}
                             onChange={(e) => {
                               const file = e.target.files[0];
                               if (file) {
@@ -533,7 +582,9 @@ function Enroll() {
                           />
                           <button
                             className="btn btn-outline"
-                            onClick={() => document.getElementById('file-upload').click()}
+                            onClick={() =>
+                              document.getElementById("file-upload").click()
+                            }
                           >
                             Upload Image
                           </button>
@@ -554,13 +605,21 @@ function Enroll() {
                 {isVoice ? (
                   <div className="voice-preview">
                     <div className="success-icon">🎤</div>
-                    <div className="fp-preview-label">Voice password recorded successfully</div>
-                    <audio controls src={capturedImage} className="audio-preview" />
+                    <div className="fp-preview-label">
+                      Voice password recorded successfully
+                    </div>
+                    <audio
+                      controls
+                      src={capturedImage}
+                      className="audio-preview"
+                    />
                   </div>
                 ) : isFingerprint ? (
                   <div className="fp-preview">
                     <img src={capturedImage} alt="Fingerprint" />
-                    <div className="fp-preview-label">Fingerprint captured from sensor</div>
+                    <div className="fp-preview-label">
+                      Fingerprint captured from sensor
+                    </div>
                   </div>
                 ) : (
                   <img src={capturedImage} alt="Captured biometric" />
@@ -568,13 +627,15 @@ function Enroll() {
               </div>
               {error && <div className="error-message">{error}</div>}
               <div className="action-buttons">
-                <button className="btn btn-outline" onClick={retake}>↺ Retake</button>
+                <button className="btn btn-outline" onClick={retake}>
+                  ↺ Retake
+                </button>
                 <button
                   className="btn btn-primary"
                   onClick={handleEnroll}
                   disabled={isProcessing}
                 >
-                  {isProcessing ? '⏳ Processing…' : '🔗 Enroll on Blockchain'}
+                  {isProcessing ? "⏳ Processing…" : "🔗 Enroll on Blockchain"}
                 </button>
               </div>
             </div>
@@ -585,22 +646,31 @@ function Enroll() {
             <div className="step-content text-center">
               <div className="success-icon">✓</div>
               <h3>Enrollment Successful!</h3>
-              <p className="text-muted">Your biometric identity has been registered</p>
+              <p className="text-muted">
+                Your biometric identity has been registered
+              </p>
 
               <div className="result-details card-glass">
                 <div className="result-item">
                   <span className="result-label">Subject ID</span>
-                  <span className="result-value mono">{result.subject_id?.slice(0, 16)}…</span>
+                  <span className="result-value mono">
+                    {result.subject_id?.slice(0, 16)}…
+                  </span>
                 </div>
                 <div className="result-item">
                   <span className="result-label">Biometric Type</span>
-                  <span className="result-value">{getBiometricIcon(result.biometric_type)} {result.biometric_type}</span>
+                  <span className="result-value">
+                    {getBiometricIcon(result.biometric_type)}{" "}
+                    {result.biometric_type}
+                  </span>
                 </div>
 
                 {result.transaction_hash && (
                   <div className="result-item">
                     <span className="result-label">Transaction</span>
-                    <span className="result-value mono">{result.transaction_hash?.slice(0, 16)}…</span>
+                    <span className="result-value mono">
+                      {result.transaction_hash?.slice(0, 16)}…
+                    </span>
                   </div>
                 )}
               </div>

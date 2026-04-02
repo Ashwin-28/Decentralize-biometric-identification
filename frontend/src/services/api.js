@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const API_FALLBACK =
+export const API_FALLBACK =
   "https://biometric-backend-app.kindstone-7b8f6cd7.southeastasia.azurecontainerapps.io/api";
 
 const normalizeApiBase = (rawValue) => {
@@ -22,7 +22,14 @@ const normalizeApiBase = (rawValue) => {
   }
 };
 
-export const API_BASE = normalizeApiBase(process.env.REACT_APP_API_URL);
+const runtimeApiUrl =
+  typeof window !== "undefined" && window.__APP_CONFIG__?.apiUrl
+    ? window.__APP_CONFIG__.apiUrl
+    : undefined;
+
+export const API_BASE = normalizeApiBase(
+  runtimeApiUrl || process.env.REACT_APP_API_URL,
+);
 
 const api = axios.create({
   baseURL: API_BASE,
@@ -255,6 +262,44 @@ export const multimodalAuthenticate = async (
 
 export const captureFingerprint = async (signal) => {
   const response = await api.post("/fingerprint/capture", {}, { signal });
+  return response.data;
+};
+
+export const webauthnRegisterOptions = async (name, email = null) => {
+  const response = await api.post("/webauthn/register/options", {
+    name,
+    email,
+  });
+  return response.data;
+};
+
+export const webauthnRegisterVerify = async (
+  token,
+  name,
+  credential,
+  email = null,
+) => {
+  const response = await api.post("/webauthn/register/verify", {
+    token,
+    name,
+    email,
+    credential,
+  });
+  return response.data;
+};
+
+export const webauthnAuthenticateOptions = async (identifier) => {
+  const response = await api.post("/webauthn/authenticate/options", {
+    subject_id: identifier,
+  });
+  return response.data;
+};
+
+export const webauthnAuthenticateVerify = async (token, credential) => {
+  const response = await api.post("/webauthn/authenticate/verify", {
+    token,
+    credential,
+  });
   return response.data;
 };
 

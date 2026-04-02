@@ -2,14 +2,13 @@ import React, { useState, useRef, useCallback } from "react";
 import Webcam from "react-webcam";
 import {
   API_BASE,
+  API_FALLBACK,
   authenticateSubject,
-  captureFingerprint,
+  webauthnAuthenticateOptions,
+  webauthnAuthenticateVerify,
 } from "../services/api";
 import { cropBiometricImage } from "../utils/imageCapture";
 import "./Authenticate.css";
-
-const API_FALLBACK =
-  "https://biometric-backend-app.kindstone-7b8f6cd7.southeastasia.azurecontainerapps.io/api";
 
 function Authenticate() {
   const webcamRef = useRef(null);
@@ -23,7 +22,6 @@ function Authenticate() {
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
   const [sensorStatus, setSensorStatus] = useState("");
-  const [fingerprintHash, setFingerprintHash] = useState(null); // Store captured fingerprint hash for verification
 
   // Voice lookup state
   const [isUserVerified, setIsUserVerified] = useState(false);
@@ -31,6 +29,40 @@ function Authenticate() {
 
   const isFingerprint = biometricType === "fingerprint";
   const isVoice = biometricType === "voice";
+
+  const base64UrlToUint8Array = (base64Url) => {
+    const padded = `${base64Url}${"=".repeat((4 - (base64Url.length % 4)) % 4)}`
+      .replace(/-/g, "+")
+      .replace(/_/g, "/");
+    const binary = window.atob(padded);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i += 1) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+    return bytes;
+  };
+
+  const arrayBufferToBase64Url = (buffer) => {
+    const bytes = new Uint8Array(buffer);
+    let binary = "";
+    for (let i = 0; i < bytes.length; i += 1) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    return window
+      .btoa(binary)
+      .replace(/\+/g, "-")
+      .replace(/\//g, "_")
+      .replace(/=+$/g, "");
+  };
+
+  const ensureWebAuthn = () => {
+    if (!window.isSecureContext) {
+      throw new Error("Fingerprint on web requires HTTPS (or localhost).");
+    }
+    if (!window.PublicKeyCredential || !navigator.credentials) {
+      throw new Error("This browser does not support WebAuthn credentials.");
+    }
+  };
 
   // Voice recording state
   const [isRecording, setIsRecording] = useState(false);
@@ -71,21 +103,22 @@ function Authenticate() {
   // Re-initialization function to reconnect to the native fingerprint driver/backend
   const reconnectSensor = async () => {
     setIsSensorCapturing(true);
-    setSensorStatus("🔄 Reconnecting to biometric service...");
+    setSensorStatus("🔄 Checking WebAuthn availability...");
     setError(null);
     try {
-      // Test backend health and sensor availability
-      const response = await fetch(`${API_BASE}/fingerprint/status`);
+      const response = await fetch(`${API_BASE}/webauthn/status`, {
+        cache: "no-store",
+      });
       const status = await response.json();
       if (status.available) {
-        setSensorStatus("✅ Service Reconnected. Sensor is ready.");
-        window.alert("✅ Biometric Service Reconnected successfully!");
+        setSensorStatus("✅ WebAuthn backend is ready.");
+        window.alert("✅ Web fingerprint verification is ready.");
       } else {
-        throw new Error("Sensor service responding but hardware not detected.");
+        throw new Error("WebAuthn endpoint is not available.");
       }
     } catch (err) {
       console.error("Reconnect failed:", err);
-      setSensorStatus("❌ Reconnection failed. Please check backend.");
+      setSensorStatus("❌ Availability check failed.");
       setError("Reconnect failed: " + err.message);
     } finally {
       setIsSensorCapturing(false);
@@ -93,103 +126,80 @@ function Authenticate() {
   };
 
   const captureSensor = async () => {
-    const controller = new AbortController();
-    const { signal } = controller;
-
     setIsSensorCapturing(true);
     setError(null);
-    setSensorStatus("Initializing sensor... Please wait 3-5 seconds.");
+    setSensorStatus("Requesting your device authenticator...");
+    try {
+      ensureWebAuthn();
 
-    // Give 3 to 5 seconds to make the sensor ready
-    await new Promise((resolve) => setTimeout(resolve, 4000));
-
-    // Callback validation check
-    const onCaptureSuccess = (data) => {
-      console.log("[DEBUG] Callback triggered with data:", !!data);
-      if (typeof setCapturedImage !== "function") {
-        console.error(
-          '[FATAL] State setter "setCapturedImage" is not a function!',
-        );
-        return;
+      const identifier = subjectId.trim();
+      if (!identifier) {
+        throw new Error("Enter Subject ID first.");
       }
 
-      // Update captured image and hash
-      setCapturedImage(`data:image/png;base64,${data.image_b64}`);
-      if (data.hash) {
-        setFingerprintHash(data.hash);
-        console.log(
-          "[AUTH] Fingerprint hash stored for verification:",
-          data.hash.substring(0, 20) + "...",
+      const optionsPayload = await webauthnAuthenticateOptions(identifier);
+      const publicKey = optionsPayload?.publicKey;
+
+      if (!optionsPayload?.token || !publicKey?.challenge) {
+        throw new Error(
+          "Invalid WebAuthn authentication options from backend.",
         );
       }
 
-      if (data.simulated) {
-        setSensorStatus(
-          "⚠️ Sensor unavailable — simulated fingerprint captured.",
-        );
-      } else {
-        setSensorStatus("✅ Fingerprint scanned successfully!");
-      }
-    };
-
-    const runCaptureWithRetry = async (retryCount = 0) => {
-      const MAX_RETRIES = 2;
-      setSensorStatus(
-        "Sensor is ready. Please place your finger on the sensor.",
+      const allowCredentials = (publicKey.allowCredentials || []).map(
+        (item) => ({
+          ...item,
+          id: base64UrlToUint8Array(item.id),
+        }),
       );
 
-      try {
-        const TIMEOUT_MS = 25000;
-        const timeoutId = setTimeout(() => {
-          controller.abort();
-        }, TIMEOUT_MS);
+      const assertion = await navigator.credentials.get({
+        publicKey: {
+          ...publicKey,
+          challenge: base64UrlToUint8Array(publicKey.challenge),
+          allowCredentials,
+        },
+      });
 
-        const keepAlive = setInterval(() => {
-          console.debug(
-            `[HEARTBEAT] Biometric bridge active (Scan ${retryCount + 1})`,
-          );
-        }, 3000);
-
-        try {
-          const data = await captureFingerprint(signal);
-          clearTimeout(timeoutId);
-          clearInterval(keepAlive);
-
-          if (data && data.success) {
-            onCaptureSuccess(data);
-          } else {
-            throw new Error(data?.error || "Sensor capture failed.");
-          }
-        } catch (innerErr) {
-          clearTimeout(timeoutId);
-          clearInterval(keepAlive);
-          if (innerErr.name === "AbortError") {
-            throw new Error("Scan timed out. Please try again.");
-          }
-          throw innerErr;
-        }
-      } catch (err) {
-        const isChannelClosed =
-          err.message?.includes("message channel closed") ||
-          err.message?.includes("Network Error") ||
-          err.message?.includes("AxiosError");
-
-        if (isChannelClosed && retryCount < MAX_RETRIES) {
-          setSensorStatus(`Connection lost. Re-initializing...`);
-          await new Promise((r) => setTimeout(r, 2000));
-          return runCaptureWithRetry(retryCount + 1);
-        }
-
-        throw err;
+      if (!assertion) {
+        throw new Error("No fingerprint assertion returned by device.");
       }
-    };
 
-    try {
-      await runCaptureWithRetry();
+      const assertionPayload = {
+        id: assertion.id,
+        rawId: arrayBufferToBase64Url(assertion.rawId),
+        type: assertion.type,
+        response: {
+          clientDataJSON: arrayBufferToBase64Url(
+            assertion.response.clientDataJSON,
+          ),
+          authenticatorData: arrayBufferToBase64Url(
+            assertion.response.authenticatorData,
+          ),
+          signature: arrayBufferToBase64Url(assertion.response.signature),
+          userHandle: assertion.response.userHandle
+            ? arrayBufferToBase64Url(assertion.response.userHandle)
+            : null,
+        },
+      };
+
+      const authResult = await webauthnAuthenticateVerify(
+        optionsPayload.token,
+        assertionPayload,
+      );
+
+      setSensorStatus("✅ Fingerprint verified via your device authenticator.");
+      setResult({
+        ...authResult,
+        ui_message: authResult.success
+          ? "✅ MATCHED SUCCESSFUL"
+          : "❌ NOT MATCHED",
+      });
     } catch (err) {
-      console.error("[BRIDGE] Capture failure:", err);
-      setError(err.message || "Could not reach sensor.");
-      setSensorStatus("Scan failed.");
+      console.error("[WEBAUTHN] Fingerprint verify failure:", err);
+      setError(err.message || "Could not verify fingerprint.");
+      setSensorStatus("Fingerprint verification failed.");
+      setResult({ success: false, ui_message: "❌ NOT MATCHED" });
     } finally {
       setIsSensorCapturing(false);
     }
@@ -411,6 +421,11 @@ function Authenticate() {
   };
 
   const handleAuthenticate = async () => {
+    if (isFingerprint) {
+      setError("Use SCAN FINGERPRINT to verify fingerprint authenticator.");
+      return;
+    }
+
     if (!capturedImage || !subjectId) {
       window.alert("Please capture biometric and enter Subject ID first.");
       return;
@@ -445,7 +460,7 @@ function Authenticate() {
         subjectId,
         biometricType,
         null, // eyeSide removed
-        isFingerprint ? fingerprintHash : null,
+        null,
         spokenPasswordRef.current || spokenPassword, // Use ref for latest STT value
       );
 
@@ -533,8 +548,8 @@ function Authenticate() {
                   </div>
                   <p className="sensor-label">
                     {isSensorCapturing
-                      ? sensorStatus || "Scanning… Hold still"
-                      : "Ready (Touch sensor)"}
+                      ? sensorStatus || "Waiting for authenticator prompt..."
+                      : "Ready (Use built-in or external authenticator)"}
                   </p>
                 </div>
                 {error && <div className="error-message">{error}</div>}
@@ -544,20 +559,22 @@ function Authenticate() {
                     onClick={captureSensor}
                     disabled={isSensorCapturing}
                   >
-                    {isSensorCapturing ? "⏳ Scanning…" : "👆 SCAN FINGERPRINT"}
+                    {isSensorCapturing
+                      ? "⏳ Waiting for fingerprint prompt..."
+                      : "👆 SCAN & VERIFY FINGERPRINT"}
                   </button>
                   <button
                     className="btn btn-outline"
                     onClick={reconnectSensor}
                     disabled={isSensorCapturing}
                   >
-                    {isSensorCapturing ? "⏳ Resetting..." : "🔄 RECONNECT"}
+                    {isSensorCapturing ? "⏳ Checking..." : "🔄 CHECK STATUS"}
                   </button>
                 </div>
                 <div className="step-guide mt-md">
                   <p>
-                    <strong>Step 1:</strong> Place finger on sensor and click
-                    scan
+                    <strong>Step:</strong> Keep this tab open and approve the
+                    browser/device fingerprint prompt.
                   </p>
                 </div>
               </div>

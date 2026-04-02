@@ -74,6 +74,10 @@ except ImportError:
 # Store active voice challenges {subject_id: code}
 voice_challenges = {}
 
+# Store short-lived WebAuthn challenges by token
+WEBAUTHN_CHALLENGE_TTL_SECONDS = int(os.environ.get('WEBAUTHN_CHALLENGE_TTL', '300'))
+webauthn_challenges = {}
+
 # ═══════════════════════════════════════════════════════════════════════════
 #                              FLASK APP SETUP
 # ═══════════════════════════════════════════════════════════════════════════
@@ -305,6 +309,88 @@ def generate_human_code() -> str:
             
     # Fallback to longer code if many collisions occur
     return ''.join(secrets.choice(string.digits) for _ in range(10))
+
+
+def _b64url_encode(data: bytes) -> str:
+    """Encode bytes into URL-safe base64 without padding."""
+    return base64.urlsafe_b64encode(data).rstrip(b'=').decode('ascii')
+
+
+def _b64url_decode(value: str) -> bytes:
+    """Decode URL-safe base64 string that may omit padding."""
+    if not isinstance(value, str):
+        raise ValueError('Expected a base64url string')
+    padding = '=' * ((4 - (len(value) % 4)) % 4)
+    return base64.urlsafe_b64decode(value + padding)
+
+
+def _origin_allowed(origin: str) -> bool:
+    """Allow HTTPS origins plus localhost for local development."""
+    if not isinstance(origin, str) or not origin:
+        return False
+    return origin.startswith('https://') or origin.startswith('http://localhost') or origin.startswith('http://127.0.0.1')
+
+
+def _prune_webauthn_challenges() -> None:
+    """Remove expired in-memory challenge entries."""
+    now = time.time()
+    expired_tokens = [
+        token for token, payload in webauthn_challenges.items()
+        if now - payload.get('created_at', 0) > WEBAUTHN_CHALLENGE_TTL_SECONDS
+    ]
+    for token in expired_tokens:
+        webauthn_challenges.pop(token, None)
+
+
+def _create_webauthn_challenge(purpose: str, **context) -> tuple[str, str]:
+    """Create a challenge token and persist challenge context for one request cycle."""
+    _prune_webauthn_challenges()
+    token = secrets.token_urlsafe(24)
+    challenge = _b64url_encode(secrets.token_bytes(32))
+    webauthn_challenges[token] = {
+        'purpose': purpose,
+        'challenge': challenge,
+        'created_at': time.time(),
+        **context,
+    }
+    return token, challenge
+
+
+def _consume_webauthn_challenge(token: str, purpose: str):
+    """Fetch and remove a challenge context if it is valid and matches purpose."""
+    _prune_webauthn_challenges()
+    if not token:
+        return None
+
+    payload = webauthn_challenges.pop(token, None)
+    if not payload:
+        return None
+
+    if payload.get('purpose') != purpose:
+        return None
+
+    age = time.time() - payload.get('created_at', 0)
+    if age > WEBAUTHN_CHALLENGE_TTL_SECONDS:
+        return None
+
+    return payload
+
+
+def _parse_webauthn_client_data(client_data_json_b64url: str) -> dict:
+    """Decode and parse WebAuthn clientDataJSON payload."""
+    try:
+        decoded = _b64url_decode(client_data_json_b64url)
+        return json.loads(decoded.decode('utf-8'))
+    except Exception as exc:
+        raise ValueError(f'Invalid clientDataJSON: {exc}') from exc
+
+
+def _normalize_webauthn_credential_id(credential: dict) -> str:
+    """Use WebAuthn credential id, preferring id then rawId if needed."""
+    if not isinstance(credential, dict):
+        return ''
+    credential_id = credential.get('id') or credential.get('rawId')
+    return str(credential_id or '').strip()
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -710,6 +796,301 @@ def fingerprint_sensor_status():
     return jsonify({
         'available': available,
         'message': 'Sensor detected' if available else 'No fingerprint sensor found or WBF service stopped'
+    })
+
+
+@app.route('/api/webauthn/status', methods=['GET'])
+def webauthn_status():
+    """Expose WebAuthn backend capability for browser-native fingerprint flows."""
+    return jsonify({
+        'available': True,
+        'requires_https': True,
+        'challenge_ttl_seconds': WEBAUTHN_CHALLENGE_TTL_SECONDS,
+        'message': 'WebAuthn challenge endpoints are ready'
+    })
+
+
+@app.route('/api/webauthn/register/options', methods=['POST'])
+def webauthn_register_options():
+    """Create WebAuthn registration challenge/options for client authenticator."""
+    data = request.get_json(silent=True) or {}
+    name = str(data.get('name') or '').strip()
+    email = str(data.get('email') or '').strip() or None
+
+    if not name:
+        return jsonify({'success': False, 'error': 'Name is required'}), 400
+
+    token, challenge = _create_webauthn_challenge('register', name=name, email=email)
+    user_handle = _b64url_encode(secrets.token_bytes(16))
+
+    return jsonify({
+        'success': True,
+        'token': token,
+        'publicKey': {
+            'challenge': challenge,
+            'rp': {
+                'name': 'Biometric Identity Platform'
+            },
+            'user': {
+                'id': user_handle,
+                'name': name,
+                'displayName': name
+            },
+            'pubKeyCredParams': [
+                {'type': 'public-key', 'alg': -7},
+                {'type': 'public-key', 'alg': -257}
+            ],
+            'timeout': 60000,
+            'attestation': 'none',
+            'authenticatorSelection': {
+                'userVerification': 'required',
+                'residentKey': 'preferred'
+            }
+        }
+    })
+
+
+@app.route('/api/webauthn/register/verify', methods=['POST'])
+def webauthn_register_verify():
+    """Verify WebAuthn registration response and persist credential id for fingerprint auth."""
+    data = request.get_json(silent=True) or {}
+    token = str(data.get('token') or '').strip()
+    name = str(data.get('name') or '').strip()
+    email = str(data.get('email') or '').strip() or None
+    credential = data.get('credential') or {}
+
+    challenge_state = _consume_webauthn_challenge(token, 'register')
+    if not challenge_state:
+        return jsonify({'success': False, 'error': 'Registration challenge expired or invalid'}), 400
+
+    if not name:
+        name = str(challenge_state.get('name') or '').strip()
+    if not name:
+        return jsonify({'success': False, 'error': 'Name is required'}), 400
+
+    credential_id = _normalize_webauthn_credential_id(credential)
+    if not credential_id:
+        return jsonify({'success': False, 'error': 'Credential id missing'}), 400
+
+    response_payload = credential.get('response') if isinstance(credential, dict) else {}
+    client_data_b64 = (response_payload or {}).get('clientDataJSON')
+    if not client_data_b64:
+        return jsonify({'success': False, 'error': 'clientDataJSON is required'}), 400
+
+    try:
+        client_data = _parse_webauthn_client_data(client_data_b64)
+    except ValueError as decode_err:
+        return jsonify({'success': False, 'error': str(decode_err)}), 400
+
+    if client_data.get('type') != 'webauthn.create':
+        return jsonify({'success': False, 'error': 'Unexpected WebAuthn operation type'}), 400
+
+    if client_data.get('challenge') != challenge_state.get('challenge'):
+        return jsonify({'success': False, 'error': 'Challenge mismatch'}), 400
+
+    if not _origin_allowed(client_data.get('origin', '')):
+        return jsonify({'success': False, 'error': 'Origin not allowed'}), 400
+
+    subject_id = generate_subject_id(name + 'fingerprint_webauthn')
+    subject_code = generate_human_code()
+    commitment_hash = hashlib.sha256(credential_id.encode('utf-8')).hexdigest()
+
+    db_result = db_service.create_subject(
+        subject_id=subject_id,
+        subject_code=subject_code,
+        name=name,
+        email=email,
+        biometric_type='fingerprint',
+        commitment_hash=commitment_hash,
+        delta_storage_id='webauthn',
+        fingerprint_hash=credential_id
+    )
+
+    if not db_result.get('success'):
+        return jsonify({'success': False, 'error': db_result.get('error', 'Database save failed')}), 500
+
+    result = {
+        'success': True,
+        'subject_id': subject_id,
+        'subject_code': subject_code,
+        'biometric_type': 'fingerprint',
+        'credential_id': credential_id,
+        'message': 'Fingerprint credential enrolled successfully'
+    }
+
+    sender = get_sender_account()
+    if sender and w3 and w3.is_connected() and contract:
+        try:
+            tx_params = {
+                'from': sender,
+                'gas': 500000,
+                'gasPrice': w3.eth.gas_price
+            }
+            subject_id_bytes = bytes.fromhex(subject_id)
+            commitment_hash_bytes = bytes.fromhex(commitment_hash)
+            delta_bytes = hashlib.sha256(f"{credential_id}:{subject_id}".encode('utf-8')).digest()[:16]
+
+            if PRIVATE_KEY:
+                tx_params['nonce'] = w3.eth.get_transaction_count(sender)
+                tx = contract.functions.enrollSubject(
+                    subject_id_bytes,
+                    commitment_hash_bytes,
+                    delta_bytes,
+                    'webauthn',
+                    1
+                ).build_transaction(tx_params)
+                signed_tx = w3.eth.account.sign_transaction(tx, PRIVATE_KEY)
+                tx_hash = w3.eth.send_raw_transaction(signed_tx.raw_transaction)
+            else:
+                tx_hash = contract.functions.enrollSubject(
+                    subject_id_bytes,
+                    commitment_hash_bytes,
+                    delta_bytes,
+                    'webauthn',
+                    1
+                ).transact(tx_params)
+
+            receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
+            result['transaction_hash'] = tx_hash.hex()
+            result['block_number'] = receipt.get('blockNumber')
+            db_service.update_subject_blockchain_tx(subject_id, tx_hash.hex())
+        except Exception as chain_err:
+            result['blockchain_error'] = str(chain_err)
+
+    return jsonify(result), 201
+
+
+@app.route('/api/webauthn/authenticate/options', methods=['POST'])
+def webauthn_authenticate_options():
+    """Create WebAuthn authentication challenge/options for a registered subject."""
+    data = request.get_json(silent=True) or {}
+    query = str(data.get('subject_id') or data.get('query') or data.get('name') or '').strip()
+
+    if not query:
+        return jsonify({'success': False, 'error': 'Subject ID or name is required'}), 400
+
+    subject = db_service.get_subject(query)
+    if not subject:
+        subject = db_service.get_subject_by_name(query)
+
+    if not subject:
+        return jsonify({'success': False, 'error': 'Subject not found'}), 404
+
+    credential_id = str(subject.get('fingerprint_hash') or '').strip()
+    if not credential_id:
+        return jsonify({'success': False, 'error': 'No WebAuthn credential found for subject'}), 400
+
+    token, challenge = _create_webauthn_challenge(
+        'authenticate',
+        subject_id=subject['subject_id'],
+        credential_id=credential_id
+    )
+
+    return jsonify({
+        'success': True,
+        'token': token,
+        'subject_id': subject['subject_id'],
+        'publicKey': {
+            'challenge': challenge,
+            'timeout': 60000,
+            'allowCredentials': [
+                {'type': 'public-key', 'id': credential_id}
+            ],
+            'userVerification': 'required'
+        }
+    })
+
+
+@app.route('/api/webauthn/authenticate/verify', methods=['POST'])
+def webauthn_authenticate_verify():
+    """Verify WebAuthn authentication response and record successful login."""
+    data = request.get_json(silent=True) or {}
+    token = str(data.get('token') or '').strip()
+    credential = data.get('credential') or {}
+
+    challenge_state = _consume_webauthn_challenge(token, 'authenticate')
+    if not challenge_state:
+        return jsonify({'success': False, 'error': 'Authentication challenge expired or invalid'}), 400
+
+    credential_id = _normalize_webauthn_credential_id(credential)
+    expected_id = str(challenge_state.get('credential_id') or '').strip()
+
+    if not credential_id or credential_id != expected_id:
+        return jsonify({'success': False, 'error': 'Credential id mismatch'}), 401
+
+    response_payload = credential.get('response') if isinstance(credential, dict) else {}
+    client_data_b64 = (response_payload or {}).get('clientDataJSON')
+    if not client_data_b64:
+        return jsonify({'success': False, 'error': 'clientDataJSON is required'}), 400
+
+    try:
+        client_data = _parse_webauthn_client_data(client_data_b64)
+    except ValueError as decode_err:
+        return jsonify({'success': False, 'error': str(decode_err)}), 400
+
+    if client_data.get('type') != 'webauthn.get':
+        return jsonify({'success': False, 'error': 'Unexpected WebAuthn operation type'}), 400
+
+    if client_data.get('challenge') != challenge_state.get('challenge'):
+        return jsonify({'success': False, 'error': 'Challenge mismatch'}), 400
+
+    if not _origin_allowed(client_data.get('origin', '')):
+        return jsonify({'success': False, 'error': 'Origin not allowed'}), 400
+
+    subject_id = str(challenge_state.get('subject_id') or '')
+    subject = db_service.get_subject(subject_id)
+    if not subject:
+        return jsonify({'success': False, 'error': 'Subject not found'}), 404
+
+    confidence = 99.0
+    logged_on_chain = False
+    blockchain_warning = None
+
+    sender = get_sender_account()
+    if sender and w3 and w3.is_connected() and contract:
+        try:
+            tx_params = {
+                'from': sender,
+                'gas': 500000,
+                'gasPrice': w3.eth.gas_price
+            }
+            clean_id = subject_id[2:] if subject_id.startswith('0x') else subject_id
+            reason = 'WebAuthn verified'
+
+            if PRIVATE_KEY:
+                tx_params['nonce'] = w3.eth.get_transaction_count(sender)
+                tx = contract.functions.logAuthentication(
+                    bytes.fromhex(clean_id), True, reason
+                ).build_transaction(tx_params)
+                signed_tx = w3.eth.account.sign_transaction(tx, PRIVATE_KEY)
+                w3.eth.send_raw_transaction(signed_tx.raw_transaction)
+            else:
+                contract.functions.logAuthentication(
+                    bytes.fromhex(clean_id), True, reason
+                ).transact(tx_params)
+
+            logged_on_chain = True
+        except Exception as chain_err:
+            blockchain_warning = str(chain_err)
+
+    db_service.log_authentication(
+        subject_id=subject_id,
+        success=True,
+        confidence=confidence,
+        ip_address=request.remote_addr,
+        user_agent=request.headers.get('User-Agent', '')[:500],
+        failure_reason=None
+    )
+
+    return jsonify({
+        'success': True,
+        'subject_id': subject_id,
+        'subject_code': subject.get('subject_code'),
+        'biometric_type': 'fingerprint',
+        'confidence': confidence,
+        'logged_on_chain': logged_on_chain,
+        'blockchain_warning': blockchain_warning,
+        'message': 'Matched Successful'
     })
 
 @app.route('/api/check-user', methods=['POST'])
