@@ -21,7 +21,7 @@ from datetime import datetime
 from functools import wraps
 
 from dotenv import load_dotenv
-load_dotenv(os.path.join(os.path.dirname(__file__), '.env'))
+load_dotenv(os.path.join(os.path.dirname(__file__), '.env'), override=True)
 
 from flask import Flask, request, jsonify
 from flask_cors import CORS

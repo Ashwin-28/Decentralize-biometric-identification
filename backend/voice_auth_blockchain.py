@@ -13,7 +13,7 @@ import os
 from web3 import Web3
 from dotenv import load_dotenv
 
-load_dotenv(os.path.join(os.path.dirname(__file__), '.env'))
+load_dotenv(os.path.join(os.path.dirname(__file__), '.env'), override=True)
 
 # ---------------- CONFIG ---------------- #
 # Read provider/address from environment for Docker and cloud portability.

@@ -1,7 +1,6 @@
 import axios from "axios";
 
-export const API_FALLBACK =
-  "https://biometric-backend-app.kindstone-7b8f6cd7.southeastasia.azurecontainerapps.io/api";
+export const API_FALLBACK = "http://127.0.0.1:5000/api";
 
 const normalizeApiBase = (rawValue) => {
   const input = (rawValue || "").trim();
